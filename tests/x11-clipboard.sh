@@ -5,7 +5,7 @@ set -euo pipefail
 OUT=$(realpath -m "$1")
 PROG=$(realpath "$2")
 mkdir -p "$OUT"
-export FMXWAYLAND_BACKEND=x11
+export FIRELINUX_BACKEND=x11
 python3 - "$OUT/source.txt" <<'PY'
 import sys
 with open(sys.argv[1], 'w', encoding='utf-8') as f:

@@ -17,7 +17,7 @@
      form blocked meanwhile), FMX's own file dialogs (no portal on the program's bus: a double click opens a file, a
      typed name saves, Escape cancels), maximize/restore from the program, the compositor and the title bar, resize
      from code, close of the main form by the compositor and a clean exit;
-  3. Hello --own-titlebar --selftest (IFMXWaylandWindowFrame without input: the window opens at the program's size,
+  3. Hello --own-titlebar --selftest (IFireLinuxWindowFrame without input: the window opens at the program's size,
      the listener, SetMaximized, SetDecorated, sizes from code) and, where the compositor can be driven, Hello
      --own-titlebar with input: no decorations, move and resize from the program's title bar, maximize and restore
      by button and double click, the compositor's window menu, activation, a popup, minimize, close;
@@ -41,12 +41,12 @@
 .EXAMPLE
   .\tests\compositors.ps1
   .\tests\compositors.ps1 -Runs gnome:1.5, kwin:1.5
-  .\tests\compositors.ps1 -BuildRoot D:\Work\FMXWayland-build\fastcanvas -Canvas TFastCanvas
+  .\tests\compositors.ps1 -BuildRoot D:\Work\FireLinux-build\fastcanvas -Canvas TFastCanvas
 #>
 param(
   [string[]] $Runs = @('weston:1', 'weston:2', 'sway:1', 'sway:2', 'sway:1.5', 'sway-csd:1', 'sway-csd:1.5', 'kwin:1',
     'kwin:2', 'kwin:1.5', 'kwin-virtual:1', 'gnome:1', 'gnome:2', 'gnome:1.5'),
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build',
   [string] $Distro = 'Ubuntu-26.04',
   [string] $Config = 'Release',
   # Parts of tests\compositors.sh: selftest, frame-selftest, early, scenario, frame, portal.
@@ -70,7 +70,7 @@ function Get-ResultLines($Checks) {
   foreach ($k in $Checks.Keys) { if ($Checks[$k]) { "PASS  $k" } else { "FAIL  $k" } }
 }
 
-# Hello --own-titlebar --selftest (IFMXWaylandWindowFrame without input; the program sizes the form 720x460 before it
+# Hello --own-titlebar --selftest (IFireLinuxWindowFrame without input; the program sizes the form 720x460 before it
 # turns the decorations off and before the first show): its log and the screenshot taken while the undecorated window
 # had its drop-down open.
 function Get-FrameSelfTestLines([string] $Out, [string] $Label, [string] $Comp, [double] $Scale) {
@@ -86,7 +86,7 @@ function Get-FrameSelfTestLines([string] $Out, [string] $Label, [string] $Comp, 
     $shot = Join-Path $Out 'frame-selftest-dropdown.png'
     $ok, $detail = Test-HelloOwnTitleBarShot $shot
     $r = if ($ok) { 'PASS' } else { 'FAIL' }
-    "$r  $($p): screenshot: the program's caption, no FMXWayland title bar ($detail)"
+    "$r  $($p): screenshot: the program's caption, no FireLinux title bar ($detail)"
     $item = Get-ColorCount $shot 0x7EB0E6 6
     "$(if ($item -gt 1500) { 'PASS' } else { 'FAIL' })  $($p): screenshot: the drop-down ($item highlight pixels)"
   }
@@ -114,7 +114,7 @@ foreach ($run in $Runs) {
     $cw, $ch = if ($comp -eq 'sway-csd') { 692, 506 } else { 700, 540 }
     $self = Get-HelloSelfTestChecks $log "$($label): self-test" ([double]::Parse($scale,
       [Globalization.CultureInfo]::InvariantCulture)) $cw $ch
-    $noMax = ($log -match 'wm capabilities of "FMXWayland Hello":(.*)') -and ($Matches[1] -notmatch 'maximize')
+    $noMax = ($log -match 'wm capabilities of "FireLinux Hello":(.*)') -and ($Matches[1] -notmatch 'maximize')
     $selfLines = foreach ($k in $self.Keys) {
       if ($noMax -and ($k -match 'maximize|restore')) { "SKIP  $k (no maximize in the window manager's capabilities)" }
       elseif ($self[$k]) { "PASS  $k" } else { "FAIL  $k" }
@@ -168,7 +168,7 @@ foreach ($run in $Runs) {
   }
   if (($Parts -contains 'frame') -and (Test-Path (Join-Path $out 'frame-01-start.png'))) {
     $ok, $detail = Test-HelloOwnTitleBarShot (Join-Path $out 'frame-01-start.png')
-    $selfLines += "$(if ($ok) { 'PASS' } else { 'FAIL' })  $($label): own title bar: screenshot: no FMXWayland " +
+    $selfLines += "$(if ($ok) { 'PASS' } else { 'FAIL' })  $($label): own title bar: screenshot: no FireLinux " +
       "title bar ($detail)"
   }
   $lines = @($selfLines) + $lines

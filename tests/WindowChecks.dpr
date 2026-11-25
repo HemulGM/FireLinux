@@ -1,7 +1,7 @@
 ﻿program WindowChecks;
 
 uses
-  System.SysUtils, System.Types, System.Diagnostics, FMXWayland.Platform;
+  System.SysUtils, System.Types, System.Diagnostics, FireLinux.Wayland.Platform, FireLinux.RasterFrame;
 
 type
   TWindow = class(TWlWindow)
@@ -9,7 +9,7 @@ type
     function HasButton(const Part: TWlDecoPart): Boolean;
     function Hit(const X, Y: Single): TWlDecoPart;
   protected
-    procedure DoPaint(const Frame: PWlFrame; const Dirty: TRectF); override;
+    procedure DoPaint(const Frame: PRasterFrame; const Dirty: TRectF); override;
   end;
 
 function TWindow.HasButton(const Part: TWlDecoPart): Boolean;
@@ -18,7 +18,7 @@ begin Result := ButtonVisible(Part); end;
 function TWindow.Hit(const X, Y: Single): TWlDecoPart;
 begin Result := DecoPartAt(X, Y); end;
 
-procedure TWindow.DoPaint(const Frame: PWlFrame; const Dirty: TRectF);
+procedure TWindow.DoPaint(const Frame: PRasterFrame; const Dirty: TRectF);
 begin
   FillChar(Frame.Bits^, Frame.Stride * Frame.Height, $FF);
   Frame.Drawn := True;
@@ -57,7 +57,7 @@ begin
               Buttons <> 0, Buttons in [1,3], Buttons in [2,3]);
             W.SetBounds(10,20,320,200);
             W.SetTitle(Format('style=%d buttons=%d Заголовок', [Style, Buttons]));
-            W.SetAppId('org.fmxwayland.WindowChecks');
+            W.SetAppId('org.firelinux.WindowChecks');
             W.SetSizeConstraints(100,80,500,400);
             W.SetIcon(Icon,2);
             W.Show;

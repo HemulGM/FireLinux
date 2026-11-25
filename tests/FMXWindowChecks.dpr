@@ -3,7 +3,7 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Classes, System.Types, System.UITypes,
   System.Diagnostics, FMX.Forms, FMX.Types, FMX.Graphics, FMX.Platform, FMX.Platform.Linux,
-  FMUX.Api, FMXWayland.Platform;
+  FMUX.Api, FireLinux.Wayland.Platform;
 
 procedure Check(Value: Boolean; const Message: string);
 begin if not Value then raise Exception.Create(Message); end;

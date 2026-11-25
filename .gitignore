@@ -1,12 +1,14 @@
-# Generated at build time from the local Delphi installation (Embarcadero's interface section): never commit
+# Copies left by the previous FMUX build step
 FMUX.Api.pas
+!/src/FMUX.Api.pas
 gen/
 
-# Build output (tools\build.ps1 puts it on D:\Work\FMXWayland-build by default)
+# Build output (tools\build.ps1 puts it on D:\Work\FireLinux-build by default)
 bin/
 dcu/
 out/
 *.res
+!/src/FMX.Filter.res
 
 # Delphi compiler / IDE artifacts
 *.dcu
@@ -41,3 +43,4 @@ desktop.ini
 .vscode/
 /samples/Hello/Linux64/*
 *.dsv
+/codex-work/*

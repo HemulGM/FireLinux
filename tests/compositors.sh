@@ -6,7 +6,7 @@
 #      application, the combo box popup, second and modal forms, FMX's own file dialogs, xdg-activation,
 #      maximize/restore from the program and from the compositor, close from the compositor and from client-side
 #      title bar buttons; screenshots;
-#   3. Hello --own-titlebar --selftest (IFMXWaylandWindowFrame without input) and, where the compositor can be
+#   3. Hello --own-titlebar --selftest (IFireLinuxWindowFrame without input) and, where the compositor can be
 #      driven, Hello --own-titlebar with input: no decorations (the compositor's frame is the window geometry), the
 #      caption moves the window, the edge resizes it, double click maximizes and restores, right click shows the
 #      compositor's window menu, the states follow activation, minimize, the close button;
@@ -91,7 +91,7 @@ EOF
   [ -n "$HOST_WAYLAND_DISPLAY" ]
 }
 
-# Client-side decorations of FMXWayland (the client area lies inside the window geometry): left, top. The client
+# Client-side decorations of FireLinux (the client area lies inside the window geometry): left, top. The client
 # area of the main form (sway keeps the outer size of a window it switches to client-side decorations).
 INSET_L=0; INSET_T=0
 CW=700; CH=540
@@ -164,9 +164,9 @@ case "$COMP" in
     # GNOME Shell 50 (Mutter) headless with a virtual monitor; a test extension turns on the unsafe mode, which lets
     # tests call org.gnome.Shell.Eval and org.gnome.Shell.Screenshot. Fractional scales need Mutter's
     # scale-monitor-framebuffer; gdctl sets the scale.
-    mkdir -p "$XDG_DATA_HOME/gnome-shell/extensions/fmxw-test@fmxwayland"
-    cp "$HERE/gnome-test-extension/"* "$XDG_DATA_HOME/gnome-shell/extensions/fmxw-test@fmxwayland/"
-    gsettings set org.gnome.shell enabled-extensions "['fmxw-test@fmxwayland']"
+    mkdir -p "$XDG_DATA_HOME/gnome-shell/extensions/fmxw-test@firelinux"
+    cp "$HERE/gnome-test-extension/"* "$XDG_DATA_HOME/gnome-shell/extensions/fmxw-test@firelinux/"
+    gsettings set org.gnome.shell enabled-extensions "['fmxw-test@firelinux']"
     gsettings set org.gnome.shell welcome-dialog-last-shown-version '999'
     gsettings set org.gnome.desktop.notifications show-banners false
     gsettings set org.gnome.mutter experimental-features "['scale-monitor-framebuffer']"
@@ -262,7 +262,7 @@ want() { case " $PARTS " in *" $1 "*) return 0 ;; esac; return 1; }
 if want selftest; then
   PLOG="$OUT/selftest.log"
   mkdir -p "$OUT/selftest-frames"
-  (cd "$PDIR" && DBUS_SESSION_BUS_ADDRESS="$NOSVC" FMXWAYLAND_LOG=2 FMXWAYLAND_DUMP_DIR="$OUT/selftest-frames" \
+  (cd "$PDIR" && DBUS_SESSION_BUS_ADDRESS="$NOSVC" FIRELINUX_LOG=2 FIRELINUX_DUMP_DIR="$OUT/selftest-frames" \
     timeout 120 "$PROG" --backend-probe --selftest --quit-after=90 > "$PLOG" 2>&1; echo "exit=$?" >> "$PLOG") &
   SELF=$!
   if wait_log 'selftest: drop-down open' 1 30; then
@@ -277,7 +277,7 @@ fi
 if want frame-selftest; then
   PLOG="$OUT/frame-selftest.log"
   mkdir -p "$OUT/frame-selftest-frames"
-  (cd "$PDIR" && FMXWAYLAND_LOG=2 FMXWAYLAND_DUMP_DIR="$OUT/frame-selftest-frames" timeout 90 "$PROG" \
+  (cd "$PDIR" && FIRELINUX_LOG=2 FIRELINUX_DUMP_DIR="$OUT/frame-selftest-frames" timeout 90 "$PROG" \
     --own-titlebar --selftest --quit-after=40 > "$PLOG" 2>&1; echo "exit=$?" >> "$PLOG") &
   SELF=$!
   # (Once the compositor has configured the popup: it stays open about 3 seconds.)
@@ -294,7 +294,7 @@ if want early; then
   for V in early-popup early-popup=paint early-popup=create; do
     N="${V//=/-}"
     PLOG="$OUT/$N.log"
-    (cd "$PDIR" && FMXWAYLAND_LOG=2 timeout 60 "$PROG" "--$V" --quit-after=6 > "$PLOG" 2>&1; \
+    (cd "$PDIR" && FIRELINUX_LOG=2 timeout 60 "$PROG" "--$V" --quit-after=6 > "$PLOG" 2>&1; \
       echo "exit=$?" >> "$PLOG") &
     E=$!
     # (FMX closes the popups of a form when the compositor activates it.)
@@ -313,7 +313,7 @@ finish() {
   exit 0
 }
 
-MAIN="FMXWayland Hello"
+MAIN="FireLinux Hello"
 # The client area of a window: its geometry (the compositor's) plus the program's decorations.
 CX=0; CY=0
 origin() { # title [max]
@@ -354,10 +354,10 @@ wait_window_gone() { # title seconds
 # 2. The scenario.
 run_scenario() {
 PLOG="$OUT/program.log"
-(cd "$PDIR" && DBUS_SESSION_BUS_ADDRESS="$NOSVC" FMXWAYLAND_LOG=${FMXW_LOG:-2} timeout 170 "$PROG" --backend-probe --verbose \
+(cd "$PDIR" && DBUS_SESSION_BUS_ADDRESS="$NOSVC" FIRELINUX_LOG=${FMXW_LOG:-2} timeout 170 "$PROG" --backend-probe --verbose \
   --dialog-dir="$DLG" --quit-after=150 > "$PLOG" 2>&1; echo "exit=$?" >> "$PLOG") &
 APP=$!
-check "window shown" wait_log 'FMXWayland: debug: configure "FMXWayland Hello": [1-9]' 1 30
+check "window shown" wait_log 'FireLinux: debug: configure "FireLinux Hello": [1-9]' 1 30
 sleep 1
 settle
 origin "$MAIN"
@@ -441,7 +441,7 @@ if origin "Second form 1"; then
   check "second form has the focus" [ "$ANS" = "Second form 1" ]
   N=$(count_log 'form activated')
   click_at 250 95
-  check "xdg-activation: token asked for the main form" wait_log 'activation token for "FMXWayland Hello"' 1 3
+  check "xdg-activation: token asked for the main form" wait_log 'activation token for "FireLinux Hello"' 1 3
   check "xdg-activation: main form activated" wait_log 'form activated' $((N + 1)) 4
   sleep 0.5
   t focus
@@ -543,7 +543,7 @@ sleep 0.5
 
 # Maximize and restore: from the program, from the compositor, from the client-side title bar (where the window
 # manager has maximize: xdg_toplevel.wm_capabilities).
-CAPS=$(grep -m1 'wm capabilities of "FMXWayland Hello"' "$PLOG")
+CAPS=$(grep -m1 'wm capabilities of "FireLinux Hello"' "$PLOG")
 note "$CAPS"
 if [ -n "$CAPS" ] && ! echo "$CAPS" | grep -q maximize; then
   result SKIP "maximize and restore" "no maximize in the window manager's capabilities:${CAPS##*\":}"
@@ -597,11 +597,11 @@ t close "$MAIN"
 check "main form closed by the compositor" wait_log '\[hello\] destroyed' 1 5
 wait $APP
 check "clean exit" grep -q 'exit=0' "$PLOG"
-check "no errors in the program's logs" bash -c "! grep -s -q -E 'protocol error|FMXWayland: error|\\[hello\\] exception' '$PLOG' '$OUT/selftest.log'"
+check "no errors in the program's logs" bash -c "! grep -s -q -E 'protocol error|FireLinux: error|\\[hello\\] exception' '$PLOG' '$OUT/selftest.log'"
 }
 
-# 3. Hello --own-titlebar with input: IFMXWaylandWindowFrame as a program with its own title bar uses it.
-FT="FMXWayland own title bar"
+# 3. Hello --own-titlebar with input: IFireLinuxWindowFrame as a program with its own title bar uses it.
+FT="FireLinux own title bar"
 GX=0; GY=0; GW=0; GH=0
 fgeo() { t geometry "$FT" || return 1; set -- $ANS; GX=$1; GY=$2; GW=$3; GH=$4; }
 fat() { t move "$(calc "$GX + $1")" "$(calc "$GY + $2")"; }
@@ -637,7 +637,7 @@ dclick() { # x y
 
 run_frame() {
 PLOG="$OUT/frame.log"
-(cd "$PDIR" && FMXWAYLAND_LOG=${FMXW_LOG:-2} timeout 200 "$PROG" --own-titlebar --quit-after=180 > "$PLOG" 2>&1; \
+(cd "$PDIR" && FIRELINUX_LOG=${FMXW_LOG:-2} timeout 200 "$PROG" --own-titlebar --quit-after=180 > "$PLOG" 2>&1; \
   echo "exit=$?" >> "$PLOG") &
 APP=$!
 check "own title bar: window shown" wait_log "configure \"$FT\": [0-9]" 1 30
@@ -658,7 +658,7 @@ shot frame-01-start
 X0=$GX; Y0=$GY
 drag 300 18 120 80 kick
 check "own title bar: BeginMove True (press on the caption)" wait_log 'frame: BeginMove True' 1 2
-check "own title bar: the move starts with the drag" wait_log 'move of "FMXWayland own title bar" starts \(dragged\)' 1 2
+check "own title bar: the move starts with the drag" wait_log 'move of "FireLinux own title bar" starts \(dragged\)' 1 2
 fgeo
 checkd "own title bar: drag on the caption moves the window" "by $((GX - X0)),$((GY - Y0))" \
   bash -c "[ $((GX - X0)) -ge 110 ] && [ $((GX - X0)) -le 130 ] && [ $((GY - Y0)) -ge 70 ] && [ $((GY - Y0)) -le 90 ]"
@@ -767,7 +767,7 @@ check "own title bar: close button" wait_log 'frame: close button' 1 3
 check "own title bar: closed" wait_log '\[hello\] destroyed' 1 5
 wait $APP
 check "own title bar: clean exit" grep -q 'exit=0' "$PLOG"
-check "own title bar: no errors in the program's log" bash -c "! grep -q -E 'protocol error|FMXWayland: error' '$PLOG'"
+check "own title bar: no errors in the program's log" bash -c "! grep -q -E 'protocol error|FireLinux: error' '$PLOG'"
 }
 
 # 5. The portal's file dialog: xdg-desktop-portal and the backend for XDG_CURRENT_DESKTOP, started by D-Bus
@@ -808,16 +808,16 @@ else
   fi
   PLOG="$OUT/portal.log"
   # Each line with the time it was written (the portal's own log is in run.log).
-  (cd "$PDIR" && FMXWAYLAND_LOG=2 timeout 240 "$PROG" --backend-probe --verbose --dialog-dir="$DLG" --quit-after=220 \
+  (cd "$PDIR" && FIRELINUX_LOG=2 timeout 240 "$PROG" --backend-probe --verbose --dialog-dir="$DLG" --quit-after=220 \
     --quit-in-folder-dialog=10 2>&1 |
     python3 -u -c 'import sys, time
 for l in sys.stdin.buffer:
     sys.stdout.buffer.write(time.strftime("%H:%M:%S ").encode() + l); sys.stdout.buffer.flush()' > "$PLOG"
     echo "exit=${PIPESTATUS[0]}" >> "$PLOG") &
   APP=$!
-  check "portal: window shown" wait_log 'FMXWayland: debug: configure "FMXWayland Hello": [1-9]' 1 30
+  check "portal: window shown" wait_log 'FireLinux: debug: configure "FireLinux Hello": [1-9]' 1 30
   # sway with "border csd" switches the window to the program's decorations after it appears.
-  [ "$COMP" = sway-csd ] && wait_log 'decoration mode 1 of "FMXWayland Hello"' 1 5 && sleep 2
+  [ "$COMP" = sway-csd ] && wait_log 'decoration mode 1 of "FireLinux Hello"' 1 5 && sleep 2
   sleep 1
   settle
   origin "$MAIN"
@@ -936,7 +936,7 @@ for l in sys.stdin.buffer:
   check "portal: the program ended" wait_log '\[hello\] destroyed' 1 8
   wait $APP
   check "portal: clean exit" grep -q 'exit=0' "$PLOG"
-  check "portal: no errors in the program's log" bash -c "! grep -q -E 'protocol error|FMXWayland: error' '$PLOG'"
+  check "portal: no errors in the program's log" bash -c "! grep -q -E 'protocol error|FireLinux: error' '$PLOG'"
 fi
 }
 

@@ -4,11 +4,11 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Types, System.UITypes, System.Classes,
   FMX.Forms, FMX.Types, FMX.Types3D, FMX.Graphics, FMUX.Api,
-  FMXWayland.Vulkan, FMX.Materials, System.Math.Vectors,
+  FireLinux.Vulkan, FMX.Materials, System.Math.Vectors,
   HelloMain,
   HelloWindow;
 
-{$I FMXWayland.VulkanShaders.inc}
+{$I FireLinux.VulkanShaders.inc}
 
 type
   TSPIRVMaterial = class(TMaterial)

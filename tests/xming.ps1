@@ -10,7 +10,7 @@
 param(
   [Parameter(Mandatory = $true)] [string] $XmingExe,
   [ValidateSet('Both', 'Cairo', 'Skia')] [string] $Canvas = 'Both',
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build\x11-release',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build\x11-release',
   [string] $Distro = 'Ubuntu-26.04',
   [string] $HostAddress = '',
   [switch] $ClipboardBridge,

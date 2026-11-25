@@ -1,5 +1,5 @@
 param(
-  [string] $Title = 'FMXWayland own title bar',
+  [string] $Title = 'FireLinux own title bar',
   [long] $Handle = 0,
   [switch] $Find,
   [switch] $Restore

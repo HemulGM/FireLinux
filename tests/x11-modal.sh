@@ -21,11 +21,11 @@ if [ "${X11_START_COMPOSITOR:-0}" = 1 ]; then
   COMPOSITOR_PID=$!
   sleep .3
 fi
-timeout 25 env FMXWAYLAND_BACKEND=x11 FMXWAYLAND_LOG="${FMXWAYLAND_LOG:-2}" FMXWAYLAND_PORTAL=0 \
+timeout 25 env FIRELINUX_BACKEND=x11 FIRELINUX_LOG="${FIRELINUX_LOG:-2}" FIRELINUX_PORTAL=0 \
   "$PROG" --backend-probe --verbose --quit-after=20 >"$OUT/program.log" 2>&1 &
 PID=$!
 trap 'kill "$PID" ${WM_PID:+"$WM_PID"} ${COMPOSITOR_PID:+"$COMPOSITOR_PID"} 2>/dev/null || true; rm -rf "$RUN_DIR"' EXIT
-WIN=$(timeout 8 xdotool search --sync --onlyvisible --name '^FMXWayland Hello$' | head -1)
+WIN=$(timeout 8 xdotool search --sync --onlyvisible --name '^FireLinux Hello$' | head -1)
 # XWayland's Weston WM (WSLg) does not implement _NET_ACTIVE_WINDOW; focus directly for this input test.
 xdotool windowfocus --sync "$WIN"
 sleep .3

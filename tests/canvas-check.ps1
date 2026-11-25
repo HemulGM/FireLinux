@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Compares FMX's two canvases on FMXWayland: builds tests\CanvasCheck with the Skia raster canvas and with FMX's
+  Compares FMX's two canvases on FireLinux: builds tests\CanvasCheck with the Skia raster canvas and with FMX's
   cairo canvas (-Define NOSKIA), runs both on a private headless Weston in WSL at output scale 1 and 2, checks what
   the program measures (text positions with a surrogate pair, PtInPath, the PNG codec round trip, a degenerate
   matrix that must not stop the drawing) and puts the two frames side by side (<BuildRoot>\canvascheck-scale<n>.png,
@@ -10,7 +10,7 @@
   .\tests\canvas-check.ps1
 #>
 param(
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build',
   [string] $Distro = 'Ubuntu-26.04',
   [switch] $NoBuild
 )

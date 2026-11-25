@@ -100,7 +100,7 @@ var
   /// the log.</summary>
   HelloCanvasInfo: TFunc<string>;
   /// <summary>Likewise: writes the frame the canvas presented last in the form's window to a file (the frame dump
-  /// when FMXWayland has none: FMXWAYLAND_DUMP_DIR), and returns a line for the log.</summary>
+  /// when FireLinux has none: FIRELINUX_DUMP_DIR), and returns a line for the log.</summary>
   HelloSaveFrame: TFunc<TCommonCustomForm, string, string>;
   /// <summary>How the frames reach the compositor, for the form's text.</summary>
   HelloPresentation: string = 'wl_shm';
@@ -136,8 +136,8 @@ begin
 end;
 
 type
-  /// The contract of FMXWayland.Native.IFMXWaylandNativeWindow, declared here again (same GUID, same methods) the way
-  /// a library that does not depend on FMXWayland (FastCanvas) declares it.
+  /// The contract of FireLinux.Wayland.Native.IFireLinuxNativeWindow, declared here again (same GUID, same methods) the way
+  /// a library that does not depend on FireLinux (FastCanvas) declares it.
   IWaylandNativeWindowContract = interface
     ['{B04A2FBC-1322-42BC-98A6-D526A7854F2C}']
     function GetWaylandDisplay: Pointer;
@@ -315,7 +315,7 @@ begin
   FResizeButton := AddButton(440, 390, 130, 'Resize 760x560', ResizeButtonClick);
   AddButton(580, 390, 110, 'Message box', MessageButtonClick);
 
-  with AddLabel(20, 440, 660, Format('FMXWayland: FMX on %s without libfmux and GTK; %s, %s.', [BackendName, TCanvasManager.DefaultCanvas.ClassName, PresentationName])) do
+  with AddLabel(20, 440, 660, Format('FireLinux: FMX on %s without libfmux and GTK; %s, %s.', [BackendName, TCanvasManager.DefaultCanvas.ClassName, PresentationName])) do
     TextSettings.FontColor := TAlphaColors.Gray;
 
   // File dialogs: the portal's when there is one, FMX's own otherwise.
@@ -756,12 +756,12 @@ begin
           Svc.GetWaylandSurface(Handle), Size.cx, Size.cy, Svc.GetScale(Handle)]));
   end
   else
-    Log('native: no IFMXWaylandNativeWindow service');
-  // A canvas that presents the window itself: FMXWayland has no frame of it to dump, the canvas has.
-  Dir := GetEnvironmentVariable('FMXWAYLAND_DUMP_DIR');
+    Log('native: no IFireLinuxNativeWindow service');
+  // A canvas that presents the window itself: FireLinux has no frame of it to dump, the canvas has.
+  Dir := GetEnvironmentVariable('FIRELINUX_DUMP_DIR');
   if Assigned(HelloSaveFrame) and (Dir <> '') then
   try
-    Log('canvas frame: ' + HelloSaveFrame(Self, TPath.Combine(Dir, 'FMXWaylandHello-canvas.bmp')));
+    Log('canvas frame: ' + HelloSaveFrame(Self, TPath.Combine(Dir, 'FireLinuxHello-canvas.bmp')));
   except
     on E: Exception do
       Log('canvas frame: ' + E.Message);
@@ -797,13 +797,13 @@ begin
   Result.Enabled := True;
 end;
 
-/// The visible file dialog form of FMXWayland (by its class name: the sample does not use FMXWayland's units).
+/// The visible file dialog form of FireLinux (by its class name: the sample does not use FireLinux's units).
 function FindFileDialog: TCommonCustomForm;
 var
   I: Integer;
 begin
   for I := 0 to Screen.FormCount - 1 do
-    if Screen.Forms[I].Visible and (Screen.Forms[I].ClassName = 'TFMXWaylandFileDialog') then
+    if Screen.Forms[I].Visible and (Screen.Forms[I].ClassName = 'TFireLinuxFileDialog') then
       Exit(Screen.Forms[I]);
   Result := nil;
 end;
@@ -972,7 +972,7 @@ begin
   (Sender as TTimer).Enabled := False;
   for I := Screen.FormCount - 1 downto 0 do
     if (Screen.Forms[I] <> Self) and Screen.Forms[I].Visible and
-      (Screen.Forms[I].ClassName <> 'TFMXWaylandFileDialog') then
+      (Screen.Forms[I].ClassName <> 'TFireLinuxFileDialog') then
     begin
       Log('selftest: overwrite question answered Yes');
       Screen.Forms[I].ModalResult := mrYes;

@@ -2,9 +2,9 @@
 
 { Hello with FastCanvas (the define FASTCANVAS; tools\build.ps1 -Define FASTCANVAS -SearchPath
   <FastCanvas>\src\Canvas,<FastCanvas>\third_party\pasvulkan\src): FMX's canvas is FastCanvas on Vulkan. Its windows
-  present to their wl_surfaces through VK_KHR_wayland_surface (FastCanvas finds them through FMXWayland's
-  IFMXWaylandNativeWindow, declared there again: neither project depends on the other), its popups go through
-  FMXWayland's frames; text by Pango, geometry its own: no Skia, no GTK, no X11. Only this unit names FastCanvas. }
+  present to their wl_surfaces through VK_KHR_wayland_surface (FastCanvas finds them through FireLinux's
+  IFireLinuxNativeWindow, declared there again: neither project depends on the other), its popups go through
+  FireLinux's frames; text by Pango, geometry its own: no Skia, no GTK, no X11. Only this unit names FastCanvas. }
 
 interface
 
@@ -18,7 +18,7 @@ function InstallHelloFastCanvas(out AReason: string): Boolean;
 
 function HelloFastCanvasInfo: string;
 /// <summary>The frame FastCanvas presented last in the form's window, as a top-down 32-bit BMP at AFileName (the
-/// frame dump the tests look at: FMXWayland has no pixels of a window that a canvas presents itself); a line for the
+/// frame dump the tests look at: FireLinux has no pixels of a window that a canvas presents itself); a line for the
 /// log.</summary>
 
 function SaveHelloFastCanvasFrame(const AForm: TCommonCustomForm; const AFileName: string): string;

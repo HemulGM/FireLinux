@@ -4,7 +4,7 @@ set -euo pipefail
 OUT=$(realpath -m "$1")
 PROG=$(realpath "$2")
 mkdir -p "$OUT"
-env FMXWAYLAND_BACKEND=x11 "$PROG" screen-watch >"$OUT/screen.log" 2>&1 &
+env FIRELINUX_BACKEND=x11 "$PROG" screen-watch >"$OUT/screen.log" 2>&1 &
 PID=$!
 trap 'kill "$PID" 2>/dev/null || true' EXIT
 for ((i=0; i<100; i++)); do

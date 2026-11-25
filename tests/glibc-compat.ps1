@@ -8,7 +8,7 @@
 .DESCRIPTION
   Needs Docker with Linux containers (Docker Desktop on its WSL 2 engine). The images get the packages a user of the
   program would install (libwayland-client, libxkbcommon, libwayland-cursor, fontconfig, libGL for libsk4d.so, a font)
-  plus weston: they are built once as fmxwayland-compat:<image> (-Rebuild makes them again). Output, screenshots and
+  plus weston: they are built once as firelinux-compat:<image> (-Rebuild makes them again). Output, screenshots and
   logs: <BuildRoot>\shots\compat-<image>.
 
 .EXAMPLE
@@ -17,7 +17,7 @@
 #>
 param(
   [string[]] $Images = @('ubuntu:22.04', 'debian:12', 'fedora:latest'),
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build',
   [string] $Config = 'Release',
   # The WSL distribution that runs objdump.
   [string] $Distro = 'Ubuntu-26.04',
@@ -52,7 +52,7 @@ docker info --format '{{.OSType}}' 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Docker does not answer (Docker Desktop: docker desktop start)' }
 foreach ($image in $Images) {
   $name = $image -replace '[:/]', '-'
-  $tag = "fmxwayland-compat:$name"
+  $tag = "firelinux-compat:$name"
   if ($image -match '^(fedora|rockylinux|almalinux|centos)') {
     $install = 'dnf install -y -q --setopt=install_weak_deps=False weston wayland-utils libwayland-client ' +
       'libwayland-cursor libxkbcommon fontconfig mesa-libGL dejavu-sans-fonts zlib && dnf clean all'

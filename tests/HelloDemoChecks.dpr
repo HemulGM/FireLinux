@@ -3,17 +3,17 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Classes, System.UITypes, System.Math,
   FMX.Forms, FMX.Dialogs, FMX.Objects, FMUX.Api,
-  FMXWayland.Dialogs, FMXWayland.DialogTypes,
+  FireLinux.Dialogs, FireLinux.DialogTypes,
   HelloMain in '..\samples\Hello\HelloMain.pas',
   HelloWindow in '..\samples\Hello\HelloWindow.pas';
 
 type
-  TDemoBackend = class(TFMXWaylandDialogBackend)
+  TDemoBackend = class(TFireLinuxDialogBackend)
   public
     Path: string;
     Accept: Boolean;
-    Kind: TWaylandFileDialogKind;
-    function FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+    Kind: TFireLinuxFileDialogKind;
+    function FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
       var FilterIndex: Integer): Boolean; override;
     function MessageDialog(const Message: string; DialogType: TMsgDlgType; Buttons: TMsgDlgButtons;
       DefaultButton: TMsgDlgBtn): TModalResult; override;
@@ -24,7 +24,7 @@ type
 procedure Check(Condition: Boolean; const Message: string);
 begin if not Condition then raise Exception.Create(Message); end;
 
-function TDemoBackend.FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+function TDemoBackend.FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
   var FilterIndex: Integer): Boolean;
 begin Kind := Request.Kind; Files := [Path]; Result := Accept; end;
 
@@ -37,7 +37,7 @@ function TDemoBackend.InputQuery(const Caption: string; const Prompts: TArray<st
 begin Values[0] := 'Ответ ✓'; Result := Accept; end;
 
 var
-  Form: THelloForm; Mock: TDemoBackend; Backend, Previous: IFMXWaylandDialogBackend;
+  Form: THelloForm; Mock: TDemoBackend; Backend, Previous: IFireLinuxDialogBackend;
 begin
   try
     Check(ParamStr(1) <> '', 'Pass the landscape.png fixture path');
@@ -62,17 +62,17 @@ begin
       Check(SameValue(Form.PngImage.Opacity, 0.5) and SameValue(Form.JpegImage.Opacity, 0.5), 'Image opacity binding');
       Form.DemoTabs.ActiveTab := Form.DialogsTab;
       Check(not Form.PulseAnimation.Enabled, 'Hidden tab stops animation');
-      Previous := GetWaylandDialogBackend;
+      Previous := GetFireLinuxDialogBackend;
       Form.BackendCombo.ItemIndex := 1;
-      Check(GetWaylandDialogBackend <> Previous, 'Backend selector binding');
+      Check(GetFireLinuxDialogBackend <> Previous, 'Backend selector binding');
       Mock := TDemoBackend.Create; Backend := Mock; Mock.Accept := True; Mock.Path := ParamStr(1);
-      SetWaylandDialogBackend(Backend);
+      SetFireLinuxDialogBackend(Backend);
       Form.OpenButton.OnClick(Form.OpenButton);
-      Check((Mock.Kind = TWaylandFileDialogKind.OpenFile) and Form.DialogResults.Text.Contains(Mock.Path), 'Open demo binding');
+      Check((Mock.Kind = TFireLinuxFileDialogKind.OpenFile) and Form.DialogResults.Text.Contains(Mock.Path), 'Open demo binding');
       Form.SaveButton.OnClick(Form.SaveButton);
-      Check((Mock.Kind = TWaylandFileDialogKind.SaveFile) and Form.DialogResults.Text.Contains(Mock.Path), 'Save demo binding');
+      Check((Mock.Kind = TFireLinuxFileDialogKind.SaveFile) and Form.DialogResults.Text.Contains(Mock.Path), 'Save demo binding');
       Form.FolderButton.OnClick(Form.FolderButton);
-      Check(Mock.Kind = TWaylandFileDialogKind.SelectFolder, 'Folder demo binding');
+      Check(Mock.Kind = TFireLinuxFileDialogKind.SelectFolder, 'Folder demo binding');
       Form.MessageButton.OnClick(Form.MessageButton);
       Check(Form.DialogResults.Text.Contains(IntToStr(mrYes)), 'Message demo binding');
       Form.InputButton.OnClick(Form.InputButton);

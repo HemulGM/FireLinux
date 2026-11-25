@@ -3,14 +3,14 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Classes, System.IOUtils, System.UITypes,
   Posix.Stdlib, FMX.Forms, FMX.Types, FMX.Controls, FMX.ListBox, FMX.Edit, FMX.Dialogs, FMUX.Api,
-  FMXWayland.Dialogs, FMXWayland.DialogTypes, FMXWayland.FileDialog;
+  FireLinux.Dialogs, FireLinux.DialogTypes, FireLinux.FileDialog;
 
 type
   TDialogDriver = class
   private
     FBusy: Boolean;
   public
-    Action: TProc<TFMXWaylandFileDialog>;
+    Action: TProc<TFireLinuxFileDialog>;
     NestedResult: TModalResult;
     NestedInput: string;
     Failure: string;
@@ -37,18 +37,18 @@ begin
     if not Form.Visible then Continue;
     if FBusy then
     begin
-      if not (Form is TFMXWaylandFileDialog) and (NestedResult <> mrNone) then
+      if not (Form is TFireLinuxFileDialog) and (NestedResult <> mrNone) then
       begin
         if NestedInput <> '' then SetEdit(Form, NestedInput);
         Form.ModalResult := NestedResult;
       end;
     end
-    else if Form is TFMXWaylandFileDialog then
+    else if Form is TFireLinuxFileDialog then
     begin
       Inc(Calls);
       FBusy := True;
       try
-        try Action(TFMXWaylandFileDialog(Form));
+        try Action(TFireLinuxFileDialog(Form));
         except on E: Exception do begin Failure := E.Message; Form.ModalResult := mrCancel; end; end;
       finally FBusy := False; end;
       Exit;
@@ -56,7 +56,7 @@ begin
   end;
 end;
 
-function FindItem(Dialog: TFMXWaylandFileDialog; const Name: string): TListBoxItem;
+function FindItem(Dialog: TFireLinuxFileDialog; const Name: string): TListBoxItem;
 var I: Integer;
 begin
   Result := nil;
@@ -65,7 +65,7 @@ begin
       Exit(Dialog.FileList.ListItems[I]);
 end;
 
-procedure SelectItem(Dialog: TFMXWaylandFileDialog; const Name: string);
+procedure SelectItem(Dialog: TFireLinuxFileDialog; const Name: string);
 var Item: TListBoxItem;
 begin
   Item := FindItem(Dialog, Name);
@@ -75,19 +75,19 @@ end;
 
 procedure RunChecks(const Root: string; Driver: TDialogDriver);
 var
-  Backend: IFMXWaylandDialogBackend;
-  Request: TWaylandFileDialogRequest;
+  Backend: IFireLinuxDialogBackend;
+  Request: TFireLinuxFileDialogRequest;
   Files: TArray<string>; Index: Integer; Accepted: Boolean;
   Key: Word; KeyChar: WideChar;
 begin
-  Backend := TFMXWaylandDialogBackend.Create;
-  Request := Default(TWaylandFileDialogRequest);
+  Backend := TFireLinuxDialogBackend.Create;
+  Request := Default(TFireLinuxFileDialogRequest);
   Request.Title := 'FMX File Dialog'; Request.InitialFolder := Root;
-  Request.Filters := [Default(TWaylandFileFilter), Default(TWaylandFileFilter)];
+  Request.Filters := [Default(TFireLinuxFileFilter), Default(TFireLinuxFileFilter)];
   Request.Filters[0].Name := 'Текст'; Request.Filters[0].Patterns := ['*.txt'];
   Request.Filters[1].Name := 'Все файлы'; Request.Filters[1].Patterns := ['*.*'];
   Request.FilterIndex := 1; Index := 1;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin
       Check(FindItem(Dialog, 'other.bin') = nil, 'Initial filter');
       Check(FindItem(Dialog, '.hidden.txt') = nil, 'Hidden files default');
@@ -99,11 +99,11 @@ begin
     end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root + '/тест файл.txt'), 'FMX open');
   Request.Multiple := True;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin SelectItem(Dialog, 'тест файл.txt'); SelectItem(Dialog, 'second.txt'); Dialog.AcceptClick(nil); end;
   Check(Backend.FileDialog(Request, Files, Index) and (Length(Files) = 2), 'FMX multiple');
   Request.Multiple := False;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin
       Dialog.FilterCombo.ItemIndex := 1;
       Check(FindItem(Dialog, 'other.bin') <> nil, 'Changed filter');
@@ -112,7 +112,7 @@ begin
       SelectItem(Dialog, 'other.bin'); Dialog.AcceptClick(nil);
     end;
   Check(Backend.FileDialog(Request, Files, Index) and (Index = 2) and (Files[0] = Root + '/other.bin'), 'Filter result');
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin
       Dialog.LocationEdit.Text := Root + '/подпапка'; Dialog.GoClick(nil);
       Check(Dialog.CurrentFolder = Root + '/подпапка', 'Location navigation');
@@ -124,41 +124,41 @@ begin
       Dialog.NameEdit.Text := 'тест файл.txt'; Dialog.AcceptClick(nil);
     end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root + '/тест файл.txt'), 'Navigation and typed name');
-  Request.Kind := TWaylandFileDialogKind.SelectFolder;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Request.Kind := TFireLinuxFileDialogKind.SelectFolder;
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin
       Check(not Dialog.NameRow.Visible, 'Folder hides file input');
       Check(FindItem(Dialog, 'second.txt') = nil, 'Folder list excludes files');
       SelectItem(Dialog, 'подпапка'); Dialog.AcceptClick(nil);
     end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root + '/подпапка'), 'Selected folder');
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog) begin Dialog.AcceptClick(nil); end;
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog) begin Dialog.AcceptClick(nil); end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root), 'Current folder');
   Driver.NestedResult := mrOK; Driver.NestedInput := 'созданная папка';
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin
       Dialog.NewFolderClick(nil);
       Check(Dialog.CurrentFolder = Root + '/созданная папка', 'New folder navigation');
       Dialog.AcceptClick(nil);
     end;
   Check(Backend.FileDialog(Request, Files, Index) and DirectoryExists(Root + '/созданная папка'), 'Create folder');
-  Driver.NestedInput := ''; Request.Kind := TWaylandFileDialogKind.SaveFile;
+  Driver.NestedInput := ''; Request.Kind := TFireLinuxFileDialogKind.SaveFile;
   Request.InitialFile := 'новый.txt'; Request.ConfirmOverwrite := True;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog) begin Dialog.AcceptClick(nil); end;
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog) begin Dialog.AcceptClick(nil); end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root + '/новый.txt') and
     not FileExists(Files[0]), 'Save selects path without writing');
   Request.InitialFile := 'second.txt'; Driver.NestedResult := mrNo;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin
       Dialog.AcceptClick(nil); Check(Dialog.ModalResult = mrNone, 'Overwrite declined');
       Dialog.NameEdit.Text := 'replacement.txt'; Dialog.AcceptClick(nil);
     end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root + '/replacement.txt'), 'Overwrite declined then new name');
   Driver.NestedResult := mrYes;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog) begin Dialog.AcceptClick(nil); end;
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog) begin Dialog.AcceptClick(nil); end;
   Check(Backend.FileDialog(Request, Files, Index) and (Files[0] = Root + '/second.txt'), 'Overwrite accepted');
   Driver.NestedResult := mrNone; Index := 2;
-  Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+  Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
     begin Key := vkEscape; KeyChar := #0; Dialog.DialogKeyDown(nil, Key, KeyChar, []); end;
   Accepted := Backend.FileDialog(Request, Files, Index);
   Check(not Accepted and (Files = nil) and (Index = 2), 'Cancel preserves filter and returns no files');
@@ -169,10 +169,10 @@ end;
 procedure FallbackChecks(const Root: string; Driver: TDialogDriver; FolderMode: Boolean);
 var Open: TOpenDialog; Save: TSaveDialog; Directory: string;
 begin
-  SetWaylandDialogBackend(nil);
+  SetFireLinuxDialogBackend(nil);
   if FolderMode then
   begin
-    Driver.Action := procedure(Dialog: TFMXWaylandFileDialog) begin Dialog.AcceptClick(nil); end;
+    Driver.Action := procedure(Dialog: TFireLinuxFileDialog) begin Dialog.AcceptClick(nil); end;
     Directory := '';
     Check(SelectDirectory('Folder fallback', Root, Directory) and (Directory = Root), 'Old portal folder fallback');
   end
@@ -181,14 +181,14 @@ begin
     Open := TOpenDialog.Create(nil);
     try
       Open.InitialDir := Root;
-      Driver.Action := procedure(Dialog: TFMXWaylandFileDialog)
+      Driver.Action := procedure(Dialog: TFireLinuxFileDialog)
         begin SelectItem(Dialog, 'тест файл.txt'); Dialog.AcceptClick(nil); end;
       Check(Open.Execute and (Open.FileName = Root + '/тест файл.txt'), 'Missing portal fallback through TOpenDialog');
     finally Open.Free; end;
     Save := TSaveDialog.Create(nil);
     try
       Save.InitialDir := Root; Save.FileName := 'fallback-save.txt';
-      Driver.Action := procedure(Dialog: TFMXWaylandFileDialog) begin Dialog.AcceptClick(nil); end;
+      Driver.Action := procedure(Dialog: TFireLinuxFileDialog) begin Dialog.AcceptClick(nil); end;
       Check(Save.Execute and (Save.FileName = Root + '/fallback-save.txt'), 'Missing portal save fallback');
     finally Save.Free; end;
   end;
@@ -217,7 +217,7 @@ begin
       else if ParamStr(1) = '--fallback-no-bus' then
       begin
         OldAddress := UTF8String(GetEnvironmentVariable('DBUS_SESSION_BUS_ADDRESS'));
-        setenv('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/tmp/fmxwayland-nonexistent-bus', 1);
+        setenv('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/tmp/firelinux-nonexistent-bus', 1);
         try FallbackChecks(Root, Driver, False);
         finally
           if OldAddress <> '' then setenv('DBUS_SESSION_BUS_ADDRESS', PAnsiChar(OldAddress), 1)

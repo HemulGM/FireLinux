@@ -1,0 +1,26 @@
+object FireLinuxMainMenuView: TFireLinuxMainMenuView
+  Align = MostTop
+  Size.Width = 900.000000000000000000
+  Size.Height = 32.000000000000000000
+  Size.PlatformDefault = False
+  object Content: TLayout
+    Align = Client
+    Padding.Left = 8.000000000000000000
+    Padding.Right = 8.000000000000000000
+    Size.Width = 900.000000000000000000
+    Size.Height = 32.000000000000000000
+    Size.PlatformDefault = False
+    object MenuBar: TMenuBar
+      Align = Client
+      ClipChildren = True
+      Size.Width = 884.000000000000000000
+      Size.Height = 32.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+    end
+  end
+  object RefreshTimer: TTimer
+    Interval = 50
+    OnTimer = RefreshTimerTimer
+  end
+end

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run VulkanChecks in an existing Wayland session. Enable the installed Khronos
-# validation layer with FMXWAYLAND_VULKAN_VALIDATION=1 (VK_LAYER_PATH if needed).
+# validation layer with FIRELINUX_VULKAN_VALIDATION=1 (VK_LAYER_PATH if needed).
 set -u
 if [ "$#" -ne 1 ]; then
   echo "Usage: sh tests/vulkan-checks.sh /path/to/VulkanChecks" >&2

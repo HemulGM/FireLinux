@@ -3,14 +3,14 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Classes, System.UITypes, System.Diagnostics,
   FMX.Forms, FMX.Dialogs, FMX.Platform, FMX.Types, FMX.Edit, FMUX.Api,
-  FMXWayland.DialogTypes, FMXWayland.Dialogs, FMXWayland.Portal, FMXWayland.DBus;
+  FireLinux.DialogTypes, FireLinux.Dialogs, FireLinux.Portal, FireLinux.DBus;
 
 type
-  TTestBackend = class(TFMXWaylandDialogBackend)
+  TTestBackend = class(TFireLinuxDialogBackend)
   public
     Accept: Boolean;
     FilesCalled, MessagesCalled, InputsCalled: Integer;
-    function FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+    function FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
       var FilterIndex: Integer): Boolean; override;
     function MessageDialog(const Message: string; DialogType: TMsgDlgType; Buttons: TMsgDlgButtons;
       DefaultButton: TMsgDlgBtn): TModalResult; override;
@@ -28,7 +28,7 @@ begin
   if not Condition then raise Exception.Create(Message);
 end;
 
-function TTestBackend.FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+function TTestBackend.FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
   var FilterIndex: Integer): Boolean;
 begin
   Inc(FilesCalled);
@@ -57,12 +57,12 @@ end;
 
 procedure CustomChecks;
 var
-  Obj: TTestBackend; Backend: IFMXWaylandDialogBackend;
+  Obj: TTestBackend; Backend: IFireLinuxDialogBackend;
   Open: TOpenDialog; Sync: IFMXDialogServiceSync; Async: IFMXDialogServiceAsync;
   Values: TArray<string>; Done: Boolean;
 begin
   Obj := TTestBackend.Create; Backend := Obj; Obj.Accept := True;
-  SetWaylandDialogBackend(Backend);
+  SetFireLinuxDialogBackend(Backend);
   Open := TOpenDialog.Create(nil);
   try
     Open.Filter := 'Text|*.txt|All|*.*';
@@ -85,10 +85,10 @@ begin
     begin Check(R = mrNo, 'Async message result'); Done := True; end);
   Check(not Done, 'Async callback must be deferred');
   // Replacing the backend must keep an already queued request alive and on its original backend.
-  SetWaylandDialogBackend(nil);
+  SetFireLinuxDialogBackend(nil);
   CheckSynchronize(0);
   Check(Done, 'Async message callback');
-  SetWaylandDialogBackend(Backend);
+  SetFireLinuxDialogBackend(Backend);
   Done := False;
   Async.InputQueryAsync('test', ['prompt'], ['original'],
     procedure(const R: TModalResult; const AValues: array of string)
@@ -102,14 +102,14 @@ begin
     begin Check((R = mrCancel) and (AValues[0] = 'original'), 'Async cancel preserves values'); Done := True; end);
   CheckSynchronize(0);
   Check(Done, 'Async cancel callback');
-  SetWaylandDialogBackend(nil);
+  SetFireLinuxDialogBackend(nil);
   Writeln('Custom backend and FMX service checks passed');
 end;
 
 procedure PortalChecks;
 var
   Open: TOpenDialog; Save: TSaveDialog;
-  Request: TWaylandFileDialogRequest; Files: TArray<string>; Index: Integer;
+  Request: TFireLinuxFileDialogRequest; Files: TArray<string>; Index: Integer;
   Buffer: array[0..15] of Char; Raised: Boolean; Watch: TStopwatch;
 begin
   Open := TOpenDialog.Create(nil);
@@ -134,10 +134,10 @@ begin
     try FmuxFilesDialog('single', 'Text|*.txt|All|*.*', '', '/tmp/каталог', @Buffer[0],
       Length(Buffer), Index, 1); except on E: EArgumentException do Raised := True; end;
     Check(Raised and (Buffer[0] = #0) and (Index = 1), 'No filename truncation');
-    Request := Default(TWaylandFileDialogRequest); Request.Kind := TWaylandFileDialogKind.SelectFolder;
+    Request := Default(TFireLinuxFileDialogRequest); Request.Kind := TFireLinuxFileDialogKind.SelectFolder;
     Request.Title := 'folder'; Index := 1;
     Check(PortalFileDialog(Request, '', Files, Index, nil) and (Files[0] = '/tmp/каталог'), 'Portal folder');
-    Request.Kind := TWaylandFileDialogKind.OpenFile; Request.Title := 'abandon';
+    Request.Kind := TFireLinuxFileDialogKind.OpenFile; Request.Title := 'abandon';
     Watch := TStopwatch.StartNew; Raised := False;
     try PortalFileDialog(Request, '', Files, Index, function(const Fd, TimeoutMs: Integer): Boolean
       begin Result := Watch.ElapsedMilliseconds < 500; end);
@@ -191,13 +191,13 @@ begin
   Writeln('FMX message/input checks passed');
 end;
 
-var Started: TStopwatch; Request: TWaylandFileDialogRequest; Files: TArray<string>; Index: Integer;
+var Started: TStopwatch; Request: TFireLinuxFileDialogRequest; Files: TArray<string>; Index: Integer;
 begin
   try
     Application.Initialize;
     if ParamStr(1) = '--real-portal' then
     begin
-      Request := Default(TWaylandFileDialogRequest); Request.Title := 'FMXWayland portal smoke test'; Index := 1;
+      Request := Default(TFireLinuxFileDialogRequest); Request.Title := 'FireLinux portal smoke test'; Index := 1;
       Started := TStopwatch.StartNew;
       try
         PortalFileDialog(Request, '', Files, Index, function(const Fd, TimeoutMs: Integer): Boolean

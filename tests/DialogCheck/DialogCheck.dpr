@@ -1,6 +1,6 @@
 ﻿program DialogCheck;
 
-{ FMXWayland dialog check: FMXWayland's D-Bus client against a real session bus, and the dialog backend with a test
+{ FireLinux dialog check: FireLinux's D-Bus client against a real session bus, and the dialog backend with a test
   backend that answers without showing anything (what TOpenDialog, TSaveDialog, SelectDirectory, TDialogService and
   the FMUX dialog functions hand it, what comes back). tests\dialog-check.ps1 builds and runs it on a private headless
   Weston with a private bus. FMX's default canvas (no Skia). }

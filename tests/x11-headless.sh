@@ -59,7 +59,7 @@ export DISPLAY=:$number
 readlink "/proc/$XPID/exe" >"$OUT/server-executable.txt"
 else
   : "${DISPLAY:?X11_SERVER=existing requires DISPLAY}"
-  if xdotool search --onlyvisible --name '^FMXWayland Hello$' >/dev/null 2>&1; then
+  if xdotool search --onlyvisible --name '^FireLinux Hello$' >/dev/null 2>&1; then
     echo 'An existing Hello window would interfere with the input tests; use a dedicated display.' >&2
     exit 1
   fi
@@ -69,14 +69,14 @@ export XDG_RUNTIME_DIR="$RT"
 export WAYLAND_DISPLAY=missing-wayland
 unset WAYLAND_SOCKET
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$RT/no-bus"
-export FMXWAYLAND_PORTAL=0 FMXWAYLAND_LOG=2
+export FIRELINUX_PORTAL=0 FIRELINUX_LOG=2
 if [ "$SERVER" != existing ]; then
   openbox >"$OUT/openbox.log" 2>&1 &
   WPID=$!
   sleep .5
 fi
 cd "$(dirname "$PROG")"
-timeout 45 env FMXWAYLAND_BACKEND=auto "$PROG" --backend-probe --verbose --selftest --quit-after=25 >"$OUT/selftest.log" 2>&1 &
+timeout 45 env FIRELINUX_BACKEND=auto "$PROG" --backend-probe --verbose --selftest --quit-after=25 >"$OUT/selftest.log" 2>&1 &
 APP=$!
 sleep 2
 import -window root "$OUT/selftest.png"
@@ -90,9 +90,9 @@ grep -q 'selftest: synchronize from a thread, on the main thread True' "$OUT/sel
 grep -q 'selftest: queue from a thread, on the main thread True' "$OUT/selftest.log"
 grep -q 'selftest: clipboard "selftest clipboard' "$OUT/selftest.log"
 if grep -Ei 'access violation|exception|X Error|X11 error|XIO:' "$OUT/selftest.log"; then exit 1; fi
-timeout 25 env FMXWAYLAND_BACKEND=x11 "$PROG" --backend-probe --verbose --quit-after=18 >"$OUT/forced.log" 2>&1 &
+timeout 25 env FIRELINUX_BACKEND=x11 "$PROG" --backend-probe --verbose --quit-after=18 >"$OUT/forced.log" 2>&1 &
 APP=$!
-WIN=$(timeout 10 xdotool search --sync --onlyvisible --name '^FMXWayland Hello$' | head -1)
+WIN=$(timeout 10 xdotool search --sync --onlyvisible --name '^FireLinux Hello$' | head -1)
 xdotool windowfocus --sync "$WIN"
 xdotool mousemove --window "$WIN" 70 214 click 1
 xdotool mousemove --window "$WIN" 100 258 click 1
@@ -135,25 +135,25 @@ if [ "$SERVER" != existing ]; then
   sleep .3
   bash "$SCRIPT_DIR/x11-modal.sh" "$OUT/composited" "$PROG"
 fi
-if timeout 5 env FMXWAYLAND_BACKEND=wayland "$PROG" >"$OUT/wayland-only.log" 2>&1; then
+if timeout 5 env FIRELINUX_BACKEND=wayland "$PROG" >"$OUT/wayland-only.log" 2>&1; then
   echo 'Forced Wayland unexpectedly fell back to X11' >&2
   exit 1
 fi
 grep -q 'cannot connect to a Wayland compositor' "$OUT/wayland-only.log"
-if timeout 5 env DISPLAY= FMXWAYLAND_BACKEND=auto "$PROG" >"$OUT/no-display.log" 2>&1; then
+if timeout 5 env DISPLAY= FIRELINUX_BACKEND=auto "$PROG" >"$OUT/no-display.log" 2>&1; then
   echo 'Startup unexpectedly succeeded without a display' >&2
   exit 1
 fi
 grep -q 'cannot connect to X11' "$OUT/no-display.log"
-if timeout 5 env FMXWAYLAND_BACKEND=invalid "$PROG" >"$OUT/invalid.log" 2>&1; then
+if timeout 5 env FIRELINUX_BACKEND=invalid "$PROG" >"$OUT/invalid.log" 2>&1; then
   echo 'Invalid backend unexpectedly accepted' >&2
   exit 1
 fi
-grep -q 'FMXWAYLAND_BACKEND must be' "$OUT/invalid.log"
+grep -q 'FIRELINUX_BACKEND must be' "$OUT/invalid.log"
 if [ -n "$PROBE" ]; then
-  FMXWAYLAND_BACKEND=x11 "$PROBE" coordinates >"$OUT/coordinates.log" 2>&1
-  FMXWAYLAND_BACKEND=x11 "$PROBE" lifetime >"$OUT/lifetime.log" 2>&1
-  FMXWAYLAND_BACKEND=x11 "$PROBE" signal >"$OUT/signal.log" 2>&1
+  FIRELINUX_BACKEND=x11 "$PROBE" coordinates >"$OUT/coordinates.log" 2>&1
+  FIRELINUX_BACKEND=x11 "$PROBE" lifetime >"$OUT/lifetime.log" 2>&1
+  FIRELINUX_BACKEND=x11 "$PROBE" signal >"$OUT/signal.log" 2>&1
   if grep -Ei 'access violation|exception|X11 error|XIO:' "$OUT/coordinates.log" "$OUT/lifetime.log"; then exit 1; fi
   if [ "${X11_SKIP_LARGE_CLIPBOARD:-0}" != 1 ]; then
     bash "$SCRIPT_DIR/x11-clipboard.sh" "$OUT/clipboard" "$PROBE"

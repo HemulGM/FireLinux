@@ -1,7 +1,7 @@
 ﻿program DBusChecks;
 
 uses
-  System.SysUtils, FMXWayland.DBus;
+  System.SysUtils, FireLinux.DBus;
 
 var
   Bus: TDBusConnection;

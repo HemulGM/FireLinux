@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Checks FMXWayland's D-Bus client against a real bus and the dialog backend: builds tests\DialogCheck (FMX's default
+  Checks FireLinux's D-Bus client against a real bus and the dialog backend: builds tests\DialogCheck (FMX's default
   canvas) and runs it on a private headless Weston in WSL with a private session bus (tests\dialog-check.sh).
 
 .DESCRIPTION
@@ -8,19 +8,19 @@
   a non-Unix address (EDBusUnavailable); SASL EXTERNAL; method calls with strings, arrays and a dictionary of variants
   (GetConnectionCredentials: our uid and pid); an error reply with its name; a call nobody answers (timeout); a signal
   (NameOwnerChanged of a connection that goes away, kept while other calls wait); a pump that cancels; no portal on
-  the bus (unavailable at once). Dialog backend: a test backend installed with SetWaylandDialogBackend gets what
+  the bus (unavailable at once). Dialog backend: a test backend installed with SetFireLinuxDialogBackend gets what
   TOpenDialog (filters, filter index, multiple), TSaveDialog (overwrite prompt), SelectDirectory, TDialogService (sync
   and async message, input query) and FmuxMessageDialog/FmuxInputQuery hand it; what fits into FMX's buffer of 1024
   characters arrives; nil restores FMX's own dialog services. Default font: Pango font descriptions; the settings
   portal (tests\settings-portal.py on two more buses: ReadOne, and an old portal with only Read) read for GNOME's
-  font-name in a GNOME session only (not in KDE, not with FMXWAYLAND_PORTAL=0), a missing key, no portal (fontconfig
+  font-name in a GNOME session only (not in KDE, not with FIRELINUX_PORTAL=0), a missing key, no portal (fontconfig
   at once).
 
 .EXAMPLE
   .\tests\dialog-check.ps1
 #>
 param(
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build\dialogcheck',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build\dialogcheck',
   [string] $Distro = 'Ubuntu-26.04',
   [switch] $NoBuild
 )
@@ -100,8 +100,8 @@ $checks = [ordered]@{
   "font: KDE: fontconfig's sans-serif, the portal not asked" =
     ($log -match "font service KDE: `"$([regex]::Escape($family))`" 12\.0") -and
     (@($calls | Select-String 'ReadOne org\.gnome\.desktop\.interface font-name').Count -eq 2)
-  "font: FMXWAYLAND_PORTAL=0: fontconfig's sans-serif" =
-    $log -match "font service GNOME with FMXWAYLAND_PORTAL=0: `"$([regex]::Escape($family))`" 12\.0"
+  "font: FIRELINUX_PORTAL=0: fontconfig's sans-serif" =
+    $log -match "font service GNOME with FIRELINUX_PORTAL=0: `"$([regex]::Escape($family))`" 12\.0"
   'font: an old portal (Read, a variant in a variant)' =
     ($log -match 'settings Read: "DejaVu Serif Bold 10\.5"') -and
     ($log -match 'font service GNOME, old portal: "DejaVu Serif" 14\.0') -and

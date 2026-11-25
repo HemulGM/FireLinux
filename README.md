@@ -1,12 +1,11 @@
-# FMXWayland
+# FireLinux
 
-A native Wayland platform for Delphi FireMonkey (FMX) on Linux, written in Object Pascal — without Embarcadero's
-closed `libfmux.so` and without GTK. FMX programs talk to the Wayland compositor directly (libwayland-client and
-libxkbcommon, loaded at run time) and draw into shared-memory buffers with FMX's default Linux canvas (cairo and
-Pango, as with libfmux) or, optionally, with its Skia canvas.
+FireLinux provides native Wayland and X11 backends for Delphi FireMonkey (FMX) on Linux. It is written in
+Object Pascal and talks directly to the display server. It supports FMX's default Cairo/Pango canvas and the
+optional Skia raster canvas.
 
-When Wayland is unavailable, the same executable falls back to a **native X11 backend** (Xlib, no GTK or libfmux).
-See [X11 fallback](#x11-fallback) for selection, dependencies and current limitations.
+FireLinux prefers Wayland at startup and uses X11 if Wayland is unavailable. Set `FIRELINUX_BACKEND` to select a
+backend explicitly. See [X11 fallback](#x11-fallback) for dependencies and limits.
 
 ![The Hello sample on WSLg](docs/screenshots/hello.png)
 
@@ -14,7 +13,7 @@ Phase 1 (this state): an FMX program with the usual controls runs on WSLg, Westo
 windows, popups, mouse, keyboard, clipboard, timers, modal forms, message boxes, file dialogs (the desktop's through
 xdg-desktop-portal, FMX's own without one), HiDPI scale (integer and fractional), xdg-activation, server-side or
 client-side decorations or a title bar drawn by the program itself
-([IFMXWaylandWindowFrame](#ifmxwaylandwindowframe-for-programs-with-their-own-title-bar)), the desktop's font as
+([IFireLinuxWindowFrame](#ifirelinuxwindowframe-for-programs-with-their-own-title-bar)), the desktop's font as
 FMX's default, on both of FMX's Linux canvases (cairo/Pango and Skia) and on
 [FastCanvas](#fastcanvas-vulkan), a GPU canvas that presents to the windows' surfaces through Vulkan
 (`VK_KHR_wayland_surface`). See [Dialogs](#dialogs), [Compositors](#compositors), [Status](#status) and
@@ -22,51 +21,47 @@ FMX's default, on both of FMX's Linux canvases (cairo/Pango and Skia) and on
 
 ## How it works
 
-FMX for Linux (`FMX.Platform.Linux`, `FMX.Canvas.Linux`, `FMX.Clipboard.Linux`, `FMX.Skia.Canvas`, ...) calls the
-closed library libfmux (a GTK 3 wrapper) through the ~186 function-pointer variables of the unit `FMUX.Api`. The
-precompiled FMX units accept another `FMUX.Api` with the same interface section, so FMXWayland generates one at build
-time (`tools\gen-fmux-api.ps1`):
+FMX for Linux calls libfmux through the function pointers of `FMUX.Api`. FireLinux supplies
+[`src/FMUX.Api.pas`](src/FMUX.Api.pas), a shared module that preserves the Linux64 ABI of FMX Linux 1.82.
+It initializes every pointer with a stub that logs calls and returns a default value.
+`FireLinux.Backend.Factory` installs shared FMUX callbacks and the selected display backend. The Wayland
+and X11 adapters each install their own window, event-loop, input and clipboard callbacks. If connecting to
+Wayland fails in automatic mode, the factory resets the function pointers and installs X11.
 
-- the **interface section** is copied verbatim from the local Delphi installation
-  (`$(BDS)\source\fmx\FMUX.Api.pas`). It is Embarcadero's code: the generated file is never committed
-  (`.gitignore`);
-- the **implementation section** is FMXWayland's: every function pointer first gets a generated stub with the
-  declared signature (logs its name once, returns zero/nil/False), then `FMXWayland.Fmux.AssignFmuxApi` assigns the
-  implemented functions; the helper routines of the interface (`FmuxStateToShiftState`, `MsgDlgButtonsToButtons`,
-  ...) are in `src\FMXWayland.FmuxApi.inc`. There is no libfmux resource and no `dlopen` of libfmux.
-
-The platform logic of `FMX.Platform.Linux` (forms, menus loop, text service, ...) stays Embarcadero's; FMXWayland
+The platform logic of `FMX.Platform.Linux` (forms, menus loop, text service, ...) stays Embarcadero's; FireLinux
 implements what libfmux did:
 
 | Unit | What it is |
 |---|---|
-| `FMXWayland.Fmux` | The FMUX functions: windows (`TFmuxWindow` forwards Wayland events to FMX's callbacks), the paint context, bitmaps, timers, the loop, clipboard, modal loops, message boxes and file dialogs (through the dialog backend), `IFMXWaylandNativeWindow` |
-| `FMXWayland.Backend`, `FMXWayland.X11`, `FMXWayland.Xlib` | Startup backend selection and native X11 fallback: dynamically loaded Xlib, XImage presentation, input, eventfd/timers, modal loops and ICCCM clipboard; shares the FMUX canvas, bitmap and dialog implementations |
-| `FMXWayland.Cairo`, `FMXWayland.CairoApi` | FMX's default Linux canvas (`FMX.Canvas.Linux`) served by the FMUX canvas, text layout, bitmap codec and font functions on the system's cairo, Pango and gdk-pixbuf (loaded with `dlopen` on first use); contributed by [Hemul GM](https://github.com/HemulGM) |
-| `FMXWayland.Platform` | The Wayland side, independent of FMX: connection and globals, outputs, the event loop (display fd + eventfd for wake-ups + timers + watched descriptors, `prepare_read`/`read_events` so other readers such as Vulkan WSI can share the display), `TWlWindow` (xdg_toplevel / xdg_popup, wl_shm double/triple buffering, frame callbacks, damage, scale, client-side decorations, export with xdg-foreign), pointer, keyboard (xkbcommon keymap, key repeat, compose/dead keys), cursors (cursor-shape-v1 or an Xcursor theme through libwayland-cursor), clipboard (wl_data_device) |
-| `FMXWayland.Dialogs`, `FMXWayland.DialogTypes`, `FMXWayland.Portal`, `FMXWayland.DBus`, `FMXWayland.FileDialog` | Dialogs behind a replaceable backend: file dialogs through the xdg-desktop-portal FileChooser (over a small D-Bus client in Pascal, no libdbus), FMX's own file dialog form when there is no portal, message dialogs and input queries with FMX's forms (see [Dialogs](#dialogs)); contributed by [Hemul GM](https://github.com/HemulGM) |
-| `FMXWayland.Wayland`, `FMXWayland.Xkb`, `FMXWayland.WaylandCursor` | Bindings of libwayland-client, libxkbcommon, libwayland-cursor, loaded with `dlopen`: programs start without link-time dependencies and say what is missing |
-| `src\Protocols\FMXWayland.Protocol.*` | Generated from the protocol XML files in `protocols\` by `tools\gen-wayland.ps1`, a small wayland-scanner for Pascal |
-| `FMXWayland.Keys` | XKB keysyms / evdev codes -> FMX virtual keys |
-| `FMXWayland.Native` | `IFMXWaylandNativeWindow`, the contract for GPU canvases (below) |
-| `FMXWayland.FmuxLoad` | Calls `FMUX.Api.LoadLib` from `FMUX.Api`'s implementation uses, before FMX's units that call the FMUX functions initialize, whatever unit a program reaches first (the cycle `FMUX.Api` → `FMXWayland.Fmux` → FMX → `FMX.Platform.Linux` → `FMUX.Api` otherwise let `FMX.Platform.Linux` call `FmuxSetLog` while it was nil) |
-| `FMXWayland.Frame` | `IFMXWaylandWindowFrame`, the contract for programs that draw their own title bar (below) |
-| `FMXWayland.SystemFont` | FMX's `IFMXSystemFontService`: the default font of `TFont` (GNOME's `font-name` through the settings portal, else fontconfig's `sans-serif`) |
+| `FireLinux.Backend.Factory`, `FireLinux.Fmux` | Backend selection, FMUX dispatch and shared bitmap, dialog and OpenGL callbacks. |
+| `src/Backends/Wayland` | Wayland FMUX adapter, compositor protocol, input, drag and drop, and the native surface service. |
+| `src/Backends/X11` | X11 FMUX adapter and Xlib bindings for windows, XImage presentation, input and the ICCCM clipboard. |
+| `src/Rendering`, `src/Dialogs` | Shared rendering, EGL contexts, Vulkan, D-Bus and file dialogs. |
+| `FireLinux.Cairo`, `FireLinux.CairoApi` | FMX's default Linux canvas (`FMX.Canvas.Linux`) served by the FMUX canvas, text layout, bitmap codec and font functions on the system's cairo, Pango and gdk-pixbuf (loaded with `dlopen` on first use); contributed by [Hemul GM](https://github.com/HemulGM) |
+| `FireLinux.Wayland.Platform` | The Wayland side, independent of FMX: connection and globals, outputs, the event loop (display fd + eventfd for wake-ups + timers + watched descriptors, `prepare_read`/`read_events` so other readers such as Vulkan WSI can share the display), `TWlWindow` (xdg_toplevel / xdg_popup, wl_shm double/triple buffering, frame callbacks, damage, scale, client-side decorations, export with xdg-foreign), pointer, keyboard (xkbcommon keymap, key repeat, compose/dead keys), cursors (cursor-shape-v1 or an Xcursor theme through libwayland-cursor), clipboard (wl_data_device) |
+| `FireLinux.Dialogs`, `FireLinux.DialogTypes`, `FireLinux.Portal`, `FireLinux.DBus`, `FireLinux.FileDialog` | Dialogs behind a replaceable backend: file dialogs through the xdg-desktop-portal FileChooser (over a small D-Bus client in Pascal, no libdbus), FMX's own file dialog form when there is no portal, message dialogs and input queries with FMX's forms (see [Dialogs](#dialogs)); contributed by [Hemul GM](https://github.com/HemulGM) |
+| `FireLinux.Wayland.Client`, `FireLinux.Xkb`, `FireLinux.Wayland.Cursor` | Bindings of libwayland-client, libxkbcommon, libwayland-cursor, loaded with `dlopen`: programs start without link-time dependencies and say what is missing |
+| `src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.*` | Generated from the protocol XML files in `protocols\` by `tools\gen-wayland.ps1`, a small wayland-scanner for Pascal |
+| `FireLinux.Keys` | XKB keysyms / evdev codes -> FMX virtual keys |
+| `FireLinux.Wayland.Native` | `IFireLinuxNativeWindow`, the contract for GPU canvases (below) |
+| `FireLinux.FmuxLoad` | Calls `FMUX.Api.LoadLib` from `FMUX.Api`'s implementation uses, before FMX's units that call the FMUX functions initialize, whatever unit a program reaches first (the cycle `FMUX.Api` → `FireLinux.Backend.Factory` → FMX → `FMX.Platform.Linux` → `FMUX.Api` otherwise let `FMX.Platform.Linux` call `FmuxSetLog` while it was nil) |
+| `FireLinux.Frame` | `IFireLinuxWindowFrame`, the contract for programs that draw their own title bar (below) |
+| `FireLinux.SystemFont` | FMX's `IFMXSystemFontService`: the default font of `TFont` (GNOME's `font-name` through the settings portal, else fontconfig's `sans-serif`) |
 
 **Painting on Wayland.** Both of FMX's Linux canvases work; the frames go to the compositor as wl_shm buffers, attached with the
 damaged rectangle and committed; frame callbacks pace the repaints.
 
 - **FMX's default canvas** (`FMX.Canvas.Linux`, `TLinuxCanvas`: what an FMX program uses unless it sets
   `GlobalUseSkia`) calls the FMUX canvas functions (paths, fills, strokes, gradients, clips, bitmaps), text layouts and
-  bitmap codecs. libfmux implemented them with cairo, Pango and gdk-pixbuf; `FMXWayland.Cairo` does the same on the
+  bitmap codecs. libfmux implemented them with cairo, Pango and gdk-pixbuf; `FireLinux.Cairo` does the same on the
   system's libraries. The paint context is a cairo context over the window's retained frame: FMX repaints only the
   damaged region, and each wl_shm buffer (they rotate, so a buffer holds an older frame) gets the regions that changed
   since its frame. Text is antialiased in grayscale (a Wayland client does not know the subpixel order of the screen).
 - **The Skia raster canvas** (`FMX.Skia`, `GlobalUseSkia := True`, `libsk4d.so` next to the program) gets the frame
   as its context, renders the window into an FMUX bitmap (plain memory) and copies it with `FmuxCanvasDrawBitmap`.
 - **A GPU canvas** that presents itself ([FastCanvas](#fastcanvas-vulkan): Vulkan through `VK_KHR_wayland_surface`)
-  takes the window's `wl_surface` through [IFMXWaylandNativeWindow](#ifmxwaylandnativewindow-contract-for-gpu-canvases)
-  and turns FMXWayland's frames off for it; FMXWayland keeps the window's viewport, geometry and decorations in step
+  takes the window's `wl_surface` through [IFireLinuxNativeWindow](#ifirelinuxnativewindow-contract-for-gpu-canvases)
+  and turns FireLinux's frames off for it; FireLinux keeps the window's viewport, geometry and decorations in step
   with the commits of the canvas's presenting thread.
 
 The two draw the same layout; antialiasing, hinting and Pango's line spacing differ a little
@@ -80,7 +75,7 @@ Initial X11 support; see [scope, known issues and reproducible checks](docs/X11.
 
 The backend is chosen at startup, before FMX creates any windows:
 
-| `FMXWAYLAND_BACKEND` | Behaviour |
+| `FIRELINUX_BACKEND` | Behaviour |
 |---|---|
 | unset or `auto` | Prefer a reachable Wayland compositor; fall back to X11 if the transport or required compositor globals are unavailable. |
 | `wayland` | Require Wayland; fail rather than fall back. |
@@ -88,8 +83,8 @@ The backend is chosen at startup, before FMX creates any windows:
 
 ```sh
 ./Hello                              # automatic selection
-FMXWAYLAND_BACKEND=x11 ./Hello       # requires a working DISPLAY
-FMXWAYLAND_BACKEND=wayland ./Hello   # Wayland only
+FIRELINUX_BACKEND=x11 ./Hello       # requires a working DISPLAY
+FIRELINUX_BACKEND=wayland ./Hello   # Wayland only
 ```
 
 X11 loads `libX11.so.6` on demand and uses `libxkbcommon.so.0` for Unicode/compose input. Cairo/Pango and Skia
@@ -107,10 +102,10 @@ is present (`libXrender.so.1` validates the alpha format). Without a compositor,
 (`libXext.so.6`) clips transparent padding; that fallback has binary transparency rather than soft shadows.
 
 **Current X11 limitations:** scale is 1 and the X screen is reported as one display (no per-monitor RandR/HiDPI);
-window rectangles describe the client area; no XIM/IME. Vulkan presentation through `IFMXWaylandNativeWindow`
+window rectangles describe the client area; no XIM/IME. Vulkan presentation through `IFireLinuxNativeWindow`
 remains Wayland-only; the supported X11 canvases are Cairo and Skia.
 
-**Custom title bars:** the X11 backend also provides the existing `IFMXWaylandWindowFrame` contract (the name/GUID
+**Custom title bars:** the X11 backend also provides the `IFireLinuxWindowFrame` contract (the GUID
 is retained for compatibility with FMR Ribbon). It hides/restores WM decorations, reports active/maximized state,
 and supports move, resize, minimize and maximize/restore. Modern WMs receive EWMH move/resize/state requests;
 legacy WMs such as Xming use pointer-grab-driven move/resize and client-side maximize/restore. The WM menu is
@@ -155,12 +150,12 @@ become xdg_popups placed relative to their parent (the form of their placement t
 compositor gives them.
 
 **Decorations.** With `zxdg_decoration_manager_v1` the compositor draws the title bar (KWin, sway). Without it
-(WSLg, Weston, GNOME), or when the compositor answers "client-side" (sway with `border csd`), FMXWayland draws
+(WSLg, Weston, GNOME), or when the compositor answers "client-side" (sway with `border csd`), FireLinux draws
 client-side decorations: a subsurface around the window with the title (rendered by FMX's canvas), minimize/maximize/
 close buttons (those the window manager offers in `xdg_toplevel.wm_capabilities`: sway has neither maximize nor
 minimize), moving, resizing at the edges and the window menu. FMX's form rectangle includes them, like a frame on
-other platforms. `FMXWAYLAND_CSD=0` turns them off; a program can turn off both kinds for a window and draw its own
-title bar ([IFMXWaylandWindowFrame](#ifmxwaylandwindowframe-for-programs-with-their-own-title-bar)). A press on the
+other platforms. `FIRELINUX_CSD=0` turns them off; a program can turn off both kinds for a window and draw its own
+title bar ([IFireLinuxWindowFrame](#ifirelinuxwindowframe-for-programs-with-their-own-title-bar)). A press on the
 title starts the compositor's interactive move only when the pointer is dragged past 4 pixels (as GTK does), so a
 click or a double click stays the window's.
 
@@ -171,29 +166,29 @@ interface font, `org.gnome.desktop.interface font-name` ("Adwaita Sans 11"), rea
 (`org.freedesktop.portal.Settings`, `ReadOne` or the older `Read`, over the D-Bus client of the dialogs): the family
 as fontconfig resolves it (a substitute when that family is not installed), the size converted from points to FMX's
 device-independent pixels (11 pt = 14.7, as Windows reports its 9 pt message font as 12). Elsewhere, without a
-portal (it is given 1.5 seconds) or with `FMXWAYLAND_PORTAL=0`, it is the desktop's sans-serif font as fontconfig
+portal (it is given 1.5 seconds) or with `FIRELINUX_PORTAL=0`, it is the desktop's sans-serif font as fontconfig
 resolves it at FMX's default size of 12 (libfmux registers no such service: FMX used 12 there too).
-`FMXWAYLAND_FONT="family[,size]"` overrides both.
+`FIRELINUX_FONT="family[,size]"` overrides both.
 
 ## Dialogs
 
 `TOpenDialog`, `TSaveDialog` and `SelectDirectory` (FMX calls `FmuxFilesDialog`) and FMX's synchronous message
-dialogs (`FmuxMessageDialog`) go to a **dialog backend** (`FMXWayland.Dialogs`, `IFMXWaylandDialogBackend` in
-`FMXWayland.DialogTypes`). The default one:
+dialogs (`FmuxMessageDialog`) go to a **dialog backend** (`FireLinux.Dialogs`, `IFireLinuxDialogBackend` in
+`FireLinux.DialogTypes`). The default one:
 
 - **File dialogs through xdg-desktop-portal** (`org.freedesktop.portal.FileChooser`, the desktop's own dialog: GNOME,
   KDE, GTK), over a private connection to the session bus made by a small D-Bus client in Pascal
-  (`FMXWayland.DBus`: Unix socket, SASL EXTERNAL, the wire format; no libdbus). Filters, the chosen filter, the
+  (`FireLinux.DBus`: Unix socket, SASL EXTERNAL, the wire format; no libdbus). Filters, the chosen filter, the
   initial folder and name, multiple selection, folders (FileChooser version 3) are passed on. The program's window is
   exported with **xdg-foreign** (`zxdg_exporter_v2`) and named as the dialog's parent (`wayland:<handle>`), so the
   compositor keeps the dialog above it (GNOME, KWin, sway have it; without it the parent is ''). While the dialog is
   open the program's loop goes on (painting, timers, threads: the bus socket is one more descriptor of the event
   loop's poll) and its windows take no input, as under a modal form. When the program ends meanwhile, its request is
   closed and the dialog goes away.
-- **FMX's own file dialog** (`FMXWayland.FileDialog`, an FMX form: folders and files with the filter, hidden files,
+- **FMX's own file dialog** (`FireLinux.FileDialog`, an FMX form: folders and files with the filter, hidden files,
   new folder, the location typed, multiple selection, overwrite question) when there is no portal: no session bus,
   no xdg-desktop-portal, no FileChooser in it, folder selection with FileChooser before version 3, or
-  `FMXWAYLAND_PORTAL=0`. The fallback is immediate when the portal is not there (the bus says so); a portal that does
+  `FIRELINUX_PORTAL=0`. The fallback is immediate when the portal is not there (the bus says so); a portal that does
   not answer is given 5 seconds.
 - **Message dialogs** with FMX's own dialog form, as before.
 
@@ -201,20 +196,20 @@ Another backend replaces it (for example own forms), and then also serves `TDial
 queries, synchronous and asynchronous); `nil` restores the default:
 
 ```pascal
-uses FMXWayland.Dialogs, FMXWayland.DialogTypes;
+uses FireLinux.Dialogs, FireLinux.DialogTypes;
 
 type
-  TMyDialogs = class(TFMXWaylandDialogBackend)
+  TMyDialogs = class(TFireLinuxDialogBackend)
   public
-    function FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+    function FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
       var FilterIndex: Integer): Boolean; override;
   end;
 
-SetWaylandDialogBackend(TMyDialogs.Create);
+SetFireLinuxDialogBackend(TMyDialogs.Create);
 ```
 
 Limits: FMX reads the result of `FmuxFilesDialog` from a buffer of 1024 characters, so a multiple selection keeps
-the names that fit (a warning in the log names how many); `GetWaylandDialogBackend.FileDialog` has no such limit. The
+the names that fit (a warning in the log names how many); `GetFireLinuxDialogBackend.FileDialog` has no such limit. The
 portal's dialogs ask before overwriting whatever `ofOverwritePrompt` says (GTK and KDE always do). Under GNOME
 50 the portal's file dialog is Nautilus (xdg-desktop-portal-gnome hands it over), which refuses to run as root.
 
@@ -224,12 +219,9 @@ portal's dialogs ask before overwriting whatever `ofOverwritePrompt` says (GTK a
 
 ## Requirements
 
-- Delphi 13 (RAD Studio 37.0) with the Linux platform (Enterprise/Architect) and FMX for Linux with its sources:
-  in Delphi 13.0 part of the product (`source\fmx\FMUX.Api.pas`, units in `lib\linux64`), in later releases (13.1) a
-  GetIt package in the catalog repository. `tools\delphi-env.ps1` finds the `FMUX.Api.dcu` the build uses (the
-  Linux64 library path of the IDE, then the catalog repository, then `lib\linux64`) and the `FMUX.Api.pas` next to it:
-  the generated interface must be the one those precompiled FMX units were compiled with. `gen-fmux-api.ps1 -Source`
-  overrides it.
+- Delphi 13 (RAD Studio 37.0) with the Linux platform (Enterprise/Architect) and precompiled FMX for Linux
+  units compatible with the FMX Linux 1.82 ABI. `tools\delphi-env.ps1` looks on the IDE's Linux64 library
+  path, in the GetIt catalog and in `lib\linux64`. The build uses the repository copy of `FMUX.Api.pas`.
 - A Linux platform SDK to link against: `tools\make-linux-sdk.ps1` makes one from a WSL distribution (or use the
   IDE's SDK manager). The default is Ubuntu 22.04's: programs need glibc 2.35 or later (Ubuntu 22.04+, Debian 12+,
   Fedora 36+, ...; see [Tests](#tests), `tests\glibc-compat.ps1`).
@@ -243,9 +235,9 @@ portal's dialogs ask before overwriting whatever `ofOverwritePrompt` says (GTK a
 
 ## Using it in a project
 
-1. Generate `FMUX.Api.pas` (`.\tools\gen-fmux-api.ps1 -Out <dir>\FMUX.Api.pas`) and put `<dir>`, `src` and
-   `src\Protocols` **first** on the unit search path (the IDE/`dcclinux64` then compile it instead of linking
-   Embarcadero's precompiled `FMUX.Api`).
+1. Use the Linux64 unit paths in `samples/Hello/Hello.dproj` or build with `tools/build.ps1`. They include
+   `src`, `src/Backends/Wayland`, `src/Backends/Wayland/Protocols`, `src/Backends/X11`, `src/Rendering` and `src/Dialogs`.
+   If the .dpr lists `FMUX.Api` explicitly, point that entry to `src/FMUX.Api.pas`.
 2. That is all for FMX's default canvas (cairo). For the Skia canvas instead, in the .dpr:
 
    ```pascal
@@ -257,11 +249,13 @@ portal's dialogs ask before overwriting whatever `ofOverwritePrompt` says (GTK a
      ...
    ```
 
-`samples\Hello\Hello.dproj` runs `tools\prepare-ide-build.ps1` before Linux64 compilation. Use `-FmxLinux` with the command-line builder to select a particular GetIt package.
+The source directory contains `FMX.Filter.res`. Include `src` in the resource search path so the
+standard `FMX.Filter` unit can link it. Use `-FmxLinux` with the
+command-line builder or `/p:FireLinuxFmxLinux=<package>` with MSBuild to select a GetIt package explicitly.
 
 ## 3D: OpenGL
 
-`FMXWayland.OpenGL` provides the native context functions used by the stock
+`FireLinux.OpenGL` provides the native context functions used by the stock
 `FMX.Context.Linux` renderer. `TViewport3D` supports FMX meshes, shaders, lit and textured
 materials, depth/stencil buffers and multisampling. Rendering uses offscreen FBOs;
 FMX reads the BGRA result into its bitmap and Cairo composites it with the 2D controls.
@@ -285,7 +279,7 @@ renderer can register its own context through FMX's `TContextManager`.
 
 ## 3D: Vulkan
 
-`FMXWayland.Vulkan.TVulkanContext` is a native Vulkan 1.0 `TContext3D`. It renders
+`FireLinux.Vulkan.TVulkanContext` is a native Vulkan 1.0 `TContext3D`. It renders
 `TViewport3D` offscreen and composites the BGRA readback with Cairo. It uses the
 system `libvulkan.so.1`; it does not create an OpenGL/EGL context or require a
 Wayland swapchain. OpenGL remains the default. In the Hello demo select at startup:
@@ -293,10 +287,10 @@ Wayland swapchain. OpenGL remains the default. In the Hello demo select at start
 ```sh
 ./Hello --tab=3d --3d=vulkan
 ./Hello --tab=3d --3d=opengl
-# Alternative for the demo: FMXWAYLAND_3D_BACKEND=vulkan ./Hello --tab=3d
+# Alternative for the demo: FIRELINUX_3D_BACKEND=vulkan ./Hello --tab=3d
 ```
 
-For another application, add `FMXWayland.Vulkan` to uses and call
+For another application, add `FireLinux.Vulkan` to uses and call
 `RegisterVulkanContext` after `Application.Initialize`, **before** creating forms,
 materials, textures or contexts. It replaces only `IFMXContextService`; other
 Wayland platform services stay in place. Switching backends while resources exist
@@ -311,7 +305,7 @@ BGRA textures can be sampled across contexts after `EndScene`; sampling the acti
 render target raises an error. Texture replacement preserves images referenced by
 already recorded draws until their submission fence signals.
 
-`FMXWayland.VulkanDevice` owns the device, coherent staging buffers, images, barriers
+`FireLinux.VulkanDevice` owns the device, coherent staging buffers, images, barriers
 and submission fences. The first implementation submits and waits per completed
 scene for CPU readback; queue/command-pool operations are serialized. FMX scene and
 material manipulation should remain on the UI thread. This is the offscreen
@@ -319,7 +313,7 @@ material manipulation should remain on the UI thread. This is the offscreen
 textures are BGRA/premultiplied, with one texture sampler per material. Other formats
 and unsupported shader names fail explicitly instead of falling back to OpenGL.
 
-Built-in SPIR-V is embedded in `src/FMXWayland.VulkanShaders.inc`; a normal Delphi
+Built-in SPIR-V is embedded in `src/Rendering/FireLinux.VulkanShaders.inc`; a normal Delphi
 build needs no Vulkan SDK or shader compiler. The original GLSL is in `shaders/`.
 To rebuild it, use `tools/build-vulkan-shaders.ps1` with the `glslangValidator` CLI
 and Python 3. Neither tool is shipped with or loaded by the application.
@@ -336,7 +330,7 @@ Build and run the checks in an existing Wayland session:
 ```
 ```sh
 # Optional: install/configure the Khronos validation layer, then set
-# FMXWAYLAND_VULKAN_VALIDATION=1. Missing requested validation layers are an error.
+# FIRELINUX_VULKAN_VALIDATION=1. Missing requested validation layers are an error.
 sh tests/vulkan-checks.sh /path/to/VulkanChecks
 ```
 
@@ -355,8 +349,8 @@ and [synchronization](https://docs.vulkan.org/spec/latest/chapters/synchronizati
 ```powershell
 .\tools\make-linux-sdk.ps1 -CreateDistro -Install    # once: libc, crt*.o, libgcc, libz of Ubuntu 22.04 (WSL)
 .\tools\build.ps1 -Project samples\Hello\Hello.dpr   # Release; -Config Debug
-.\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define SKIA -BuildRoot D:\Work\FMXWayland-build\skia
-.\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define FASTCANVAS -BuildRoot D:\Work\FMXWayland-build\fastcanvas `
+.\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define SKIA -BuildRoot D:\Work\FireLinux-build\skia
+.\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define FASTCANVAS -BuildRoot D:\Work\FireLinux-build\fastcanvas `
   -SearchPath F:\Projects\FMXFastCanvas\src\Canvas,F:\Projects\FMXFastCanvas\third_party\pasvulkan\src
 ```
 
@@ -371,11 +365,10 @@ here requires glibc 2.35. Another SDK stays selectable:
 `make-linux-sdk.ps1 -Distro Ubuntu-26.04 -Install` makes `D:\LinuxSDK\ubuntu-26.04` (glibc 2.43), `build.ps1 -Sdk
 D:\LinuxSDK\ubuntu-26.04` links against it.
 
-`build.ps1` generates `FMUX.Api.pas` into `<BuildRoot>\gen`, compiles with `dcclinux64` (linking with its lld against
+`build.ps1` compiles `src\FMUX.Api.pas` with `dcclinux64` (linking with its lld against
 the SDK: `--syslibroot`, `--libpath`), copies `libsk4d.so` next to the program when it links FMX's Skia units (its
 map file lists `System.Skia.API`; a program on FMX's default canvas needs none). Everything goes to `-BuildRoot`
-(default `D:\Work\FMXWayland-build`: `bin\Linux64\<Config>\`, `dcu\`). It also works around the missing Linux64
-`FMX.Filter.res` of Delphi 13. msbuild builds the .dproj too, given the SDK:
+(default `D:\Work\FireLinux-build`: `bin\Linux64\<Config>\`, `dcu\`). MSBuild can build the .dproj with the SDK:
 
 ```
 msbuild samples\Hello\Hello.dproj /p:Config=Release /p:Platform=Linux64 /p:DCC_SysLibRoot=<sdk>
@@ -394,16 +387,16 @@ unset DISPLAY
 ./Hello --verbose
 ```
 
-Environment variables: `FMXWAYLAND_LOG` = 0 errors only, 1 warnings and "not implemented" notes (default), 2 debug,
-3 input traces; `FMXWAYLAND_DUMP_DIR=<dir>` writes the latest frame of each window as a BMP (debugging);
-`FMXWAYLAND_CSD=0` no client-side decorations; `FMXWAYLAND_APP_ID` the xdg app id (default: the program name);
-`FMXWAYLAND_PORTAL=0` FMX's own file dialogs instead of the portal's (and no settings portal for the font);
-`FMXWAYLAND_FONT="family[,size]"` FMX's default font (size in device-independent pixels); `XCURSOR_THEME`,
+Environment variables: `FIRELINUX_LOG` = 0 errors only, 1 warnings and "not implemented" notes (default), 2 debug,
+3 input traces; `FIRELINUX_DUMP_DIR=<dir>` writes the latest frame of each window as a BMP (debugging);
+`FIRELINUX_CSD=0` no client-side decorations; `FIRELINUX_APP_ID` the xdg app id (default: the program name);
+`FIRELINUX_PORTAL=0` FMX's own file dialogs instead of the portal's (and no settings portal for the font);
+`FIRELINUX_FONT="family[,size]"` FMX's default font (size in device-independent pixels); `XCURSOR_THEME`,
 `XCURSOR_SIZE` for cursor themes.
 
 ## IME and CJK input
 
-`FMXWayland.TextInput` binds `zwp_text_input_manager_v3` (interface version 1), follows its seat/surface focus,
+`FireLinux.Wayland.TextInput` binds `zwp_text_input_manager_v3` (interface version 1), follows its seat/surface focus,
 and enables input when an editable FMX control gains focus. Preedit, committed text and surrounding deletion
 are buffered until `done`; control changes discard old responses, while stale serials within one session apply
 text without prematurely publishing a new state. The FMUX start/change/commit callbacks update FMX composition.
@@ -428,7 +421,7 @@ not forwarded. See the vendored `protocols/text-input-unstable-v3.xml` for the p
 
 ## Main menus on Wayland
 
-`TMainMenu` is supported through `FMXWayland.Menus`, an `IFMXMenuService` adapter. Core Wayland/xdg-shell has no
+`TMainMenu` is supported through `FireLinux.Menus`, an `IFMXMenuService` adapter. Core Wayland/xdg-shell has no
 API for creating an OS-drawn application menu bar; clients draw the contents of their surfaces. The backend renders
 the standard `TMainMenu` tree with a client-side FMX `TMenuBar` and native Wayland `xdg_popup` surfaces for submenus.
 Menus use standard FMX drawing. KDE global menus require a separate compositor-specific appmenu/D-Bus integration;
@@ -440,10 +433,10 @@ Nested menus, separators, Enabled/Visible, checked/radio groups, images and shor
 Captions/state update live; structural changes made inside an open menu are rebuilt after its popup loop closes.
 F10 opens the menu; ampersand mnemonics work with Alt. Arrows, Home/End, Enter/Space, Escape and command shortcuts
 work inside the popup. Layout uses a streamed `TFrame` with `Align = MostTop`, reserving a 32-unit row above the
-form's other aligned controls. The frame and its menu bar are defined in `FMXWayland.Menus.fmx`.
+form's other aligned controls. The frame and its menu bar are defined in `FireLinux.Menus.fmx`.
 
 The service is installed by the standard `Application.Initialize` chain, after the stock platform services and
-before forms cache their menu service. `FMXWayland.Fmux` links the unit automatically. `InstallWaylandMenuService`
+before forms cache their menu service. `FireLinux.Wayland.Fmux` imports the menu adapter. `InstallWaylandMenuService`
 is also available explicitly for custom application startup. The legacy FMUX menu function pointers remain stubs
 and are bypassed by this platform service. Existing `TMenuBar` and `TPopupMenu` controls continue to use FMX.
 
@@ -503,16 +496,16 @@ The compositor and X11 input scripts run the fixed-layout form with `Hello --bac
   maximize buttons of the client-side title bar, maximize/restore, resize from code, clean exit. Needs an
   interactive desktop nobody else is using (it takes the mouse for about a minute).
 - `tests\weston-headless.ps1` — non-interactive: the sample on a private headless Weston 14 at output scale 1 and
-  2 (buffer size through `IFMXWaylandNativeWindow`, the self-test steps up to a message box answered by a timer, file
+  2 (buffer size through `IFireLinuxNativeWindow`, the self-test steps up to a message box answered by a timer, file
   dialogs without a session bus — FMX's own, driven by timers: the folder listed through the filter without hidden
   files, two files of a multiple selection, save over an existing file with another filter and the overwrite
   question, a folder, cancel —, the program's frame dumps, a compositor screenshot, clean exit), the default font
-  (fontconfig's family at 12; `FMXWAYLAND_FONT` with a serif family: the canvas measures the default text in it),
+  (fontconfig's family at 12; `FIRELINUX_FONT` with a serif family: the canvas measures the default text in it),
   popups opened before their window is mapped (`Hello --early-popup`, `=paint`, `=create`: the drop-down and the
   window must both be on the screen, counted in the screenshot's pixels) and `Hello --own-titlebar --selftest` (the
-  window frame service without input, no FMXWayland title bar in the screenshot). `-BuildRoot <root of a NOSKIA
+  window frame service without input, no FireLinux title bar in the screenshot). `-BuildRoot <root of a NOSKIA
   build> -Canvas TLinuxCanvas` runs it on FMX's default canvas, `-BuildRoot <root of a FASTCANVAS build> -Canvas
-  TFastCanvas` on FastCanvas (the frame dump is then the frame FastCanvas presented: FMXWayland has none of such a
+  TFastCanvas` on FastCanvas (the frame dump is then the frame FastCanvas presented: FireLinux has none of such a
   window). The self-test also hides the second form and shows it again (the window configured twice), and fails on an
   exception the program got (`Application.OnException` writes it to the log).
 - `tests\canvas-check.ps1` — builds `tests\CanvasCheck` for both canvases and runs them on headless Weston at scale 1
@@ -528,10 +521,10 @@ The compositor and X11 input scripts run the fixed-layout form with `Hello --bac
   the FMUX dialog functions hand it and get back; an oversized selection leaves FMX's buffer empty; `nil` restores FMX's
   dialog services) and the default font (Pango font descriptions; GNOME's `font-name` through a settings portal on
   two more private buses, `tests\settings-portal.py`: `ReadOne`, and an old portal with only `Read`; asked only in a
-  GNOME session and not with `FMXWAYLAND_PORTAL=0`; a missing key; no portal: fontconfig at once).
+  GNOME session and not with `FIRELINUX_PORTAL=0`; a missing key; no portal: fontconfig at once).
 - `tests\glibc-compat.ps1` — the glibc symbol versions Hello and `libsk4d.so` need (`objdump -T`, at most 2.35),
   then Hello's self-test on the headless Weston of other distributions in Docker containers (no screen, no GPU;
-  images with the run-time libraries, built once as `fmxwayland-compat:<image>`): `ubuntu:22.04` (glibc 2.35,
+  images with the run-time libraries, built once as `firelinux-compat:<image>`): `ubuntu:22.04` (glibc 2.35,
   Weston 9), `debian:12` (glibc 2.36, Weston 10), `fedora:latest` (Fedora 44, glibc 2.43, Weston 15) by default;
   `-Images` takes others. Needs Docker Desktop (Linux containers). On glibc 2.31 (Debian 11) the loader refuses the
   program (`GLIBC_2.34 not found`).
@@ -588,9 +581,9 @@ its log, the compositor's view of the windows and screenshots:
    dialogs (the program's session bus has no portal: a double click opens a file, a typed name saves, Escape
    cancels), maximize/restore from the program, from the compositor and from the program's title bar, resize from code
    (the compositor must see the new size), close of the main form by the compositor and a clean exit;
-3. `Hello --own-titlebar --selftest` (`IFMXWaylandWindowFrame` without input: decorations off, the listener at once
+3. `Hello --own-titlebar --selftest` (`IFireLinuxWindowFrame` without input: decorations off, the listener at once
    and after the configure, nothing started without a press, a drop-down of the undecorated window, maximize/restore
-   through the service, decorations on and off again; a screenshot without FMXWayland's title bar) and, where the
+   through the service, decorations on and off again; a screenshot without FireLinux's title bar) and, where the
    compositor can be driven, `Hello --own-titlebar` with input: no decorations (the compositor's frame equals the
    window geometry and the client area), a drag on the caption moves the window, a drag on the corner grip resizes
    it, the maximize button and a double click maximize and restore it to its size and place, a right click shows the
@@ -667,7 +660,7 @@ click (sway, KWin, GNOME); the modal form gets the activation now. Title bar but
 the compositor switches the decoration mode (sway's `border csd`; sway keeps the window's outer size, so the client
 area is 692x506 there). FMX resizes its canvas and realigns a form only when its window rectangle changes size, so
 when only the client area changes inside a window of the same outer size (decorations switched by the compositor or
-by the program), FMXWayland does those steps of `SetBounds` itself (FMX's file dialog had its buttons cut off on
+by the program), FireLinux does those steps of `SetBounds` itself (FMX's file dialog had its buttons cut off on
 sway with `border csd`; an own title bar turned on and off left the form aligned to the old client area). Popups are
 placed where asked on all of them (`popup configure x,y (asked x,y)` in the debug log). With the window frame
 service: GNOME Shell put a maximized window that a double click on the program's caption restored at the top left
@@ -691,7 +684,7 @@ xdg-desktop-portal-kde xdg-desktop-portal-gnome qt6-wayland`):
 .\tests\compositors.ps1                            # all; -Runs gnome:1.5, kwin:2 for some (<compositor>:<scale>)
 ```
 
-Results: `D:\Work\FMXWayland-build\shots\compositors\<compositor>-<scale>\` (`results-all.txt`, `steps.log`, the
+Results: `D:\Work\FireLinux-build\shots\compositors\<compositor>-<scale>\` (`results-all.txt`, `steps.log`, the
 program's logs, screenshots, frame dumps) and `summary.md` there (the matrix of all checks).
 
 | KWin 6.6 at 1.5 (server-side title bar, combo box popup) | GNOME Shell 50 at 1.5 (the program's title bars, modal form) | sway at 1.5 with `border csd` (only a close button: sway has no maximize) |
@@ -700,23 +693,23 @@ program's logs, screenshots, frame dumps) and `summary.md` there (the matrix of 
 ## FastCanvas (Vulkan)
 
 [FastCanvas](https://github.com/Fasday/FMXFastCanvas) (FMX canvas and 3D context on Vulkan, Direct3D 11/12) runs on
-FMXWayland natively: its windows present to their `wl_surface`s through `VK_KHR_wayland_surface`, with no GTK, X11,
+FireLinux natively: its windows present to their `wl_surface`s through `VK_KHR_wayland_surface`, with no GTK, X11,
 Skia or libfmux. Neither project depends on the other: FastCanvas declares
-[IFMXWaylandNativeWindow](#ifmxwaylandnativewindow-contract-for-gpu-canvases) again and takes the Wayland path when
+[IFireLinuxNativeWindow](#ifirelinuxnativewindow-contract-for-gpu-canvases) again and takes the Wayland path when
 the service is there (on FMX's GTK platform it presents to X11 windows as before).
 
 - Toplevel windows (forms, modal forms, dialogs, `TForm3D`): a Vulkan surface on the window's `wl_surface`, swap
-  chains of the buffer size FMXWayland reports, presented by a thread of FastCanvas (Mesa's WSI reads its own event
+  chains of the buffer size FireLinux reports, presented by a thread of FastCanvas (Mesa's WSI reads its own event
   queue there), `MAILBOX` (else `IMMEDIATE`; never Wayland's `FIFO`, which blocks in the present on frame callbacks a
-  hidden window never gets). FMXWayland keeps calling FMX's paint; FMX paints when it invalidates.
-- Popups (combo box lists, menus) and transparent forms go through FMXWayland's frames: FastCanvas reads them back
-  and hands them over with `FmuxCanvasDrawBitmap` (FMXWayland makes a popup's `xdg_popup` again at every show and
+  hidden window never gets). FireLinux keeps calling FMX's paint; FMX paints when it invalidates.
+- Popups (combo box lists, menus) and transparent forms go through FireLinux's frames: FastCanvas reads them back
+  and hands them over with `FmuxCanvasDrawBitmap` (FireLinux makes a popup's `xdg_popup` again at every show and
   move, which a presenting thread could not follow).
-- Before FMXWayland unmaps a window FastCanvas stops presenting to it (it wraps FMX's window service), and the first
-  frame of a window shown is presented before FMX's paint returns; FMXWayland applies the window's viewport, geometry
+- Before FireLinux unmaps a window FastCanvas stops presenting to it (it wraps FMX's window service), and the first
+  frame of a window shown is presented before FMX's paint returns; FireLinux applies the window's viewport, geometry
   and decorations before the presenter's next commit (see the contract below).
 - Building: `tools\build.ps1 -Define FASTCANVAS -SearchPath
-  <FastCanvas>\src\Canvas,<FastCanvas>\third_party\pasvulkan\src` for Hello; FastCanvas's own probes with its `tools\build-linux.ps1 -Wayland <FMXWayland folder>`. Running needs
+  <FastCanvas>\src\Canvas,<FastCanvas>\third_party\pasvulkan\src` for Hello; FastCanvas's own probes with its `tools\build-linux.ps1 -Wayland <FireLinux folder>`. Running needs
   `libvulkan1` and a Vulkan driver with `VK_KHR_wayland_surface` (Mesa's; lavapipe on the CPU presents through
   `wl_shm`), and Pango, HarfBuzz, fontconfig, FreeType for FastCanvas's text.
 - Tested (2026-10-14, WSL 2 with Ubuntu 26.04, Mesa 26.0.8's lavapipe, the only Vulkan device there): Hello with
@@ -733,39 +726,39 @@ the service is there (on FMX's GTK platform it presents to X11 windows as before
   the presenter's commits (Weston's `invalid_surface_state` on maximize), the window mapped after its first paint,
   toplevels hidden and shown again (Weston sent no configure to an unmapped toplevel that kept its role: any canvas),
   the form's canvas made again on scale changes (a new window starts at the output's integer scale), the
-  initialization order of `FMUX.Api` (`FMXWayland.FmuxLoad`), and in FastCanvas a click into an empty `TEdit`.
+  initialization order of `FMUX.Api` (`FireLinux.FmuxLoad`), and in FastCanvas a click into an empty `TEdit`.
 - Frame rate and CPU on the same scene (FastCanvas's PortProbe without its cube, 480x840, headless Weston at scale 1,
   20 s; lavapipe renders on the CPU, so only the relations mean something): repainted at once, FastCanvas 123.5 FPS
   at 2.44 CPU seconds per second (19.8 ms per frame, lavapipe's threads included; 0.3 ms of it recording on the main
-  thread), FMX's cairo canvas 39.5 FPS at 0.17 (4.3 ms per frame; FMXWayland's frame callbacks pace it), the Skia
+  thread), FMX's cairo canvas 39.5 FPS at 0.17 (4.3 ms per frame; FireLinux's frame callbacks pace it), the Skia
   raster canvas 24.4 FPS at 0.79 (32.5 ms, one thread); with a 16 ms timer 62.0 FPS at 1.28, 39.4 at 0.15, 23.9 at
   0.79.
 
-| KWin 6.6 at 1.5: Hello on FastCanvas (the drop-down read back into FMXWayland's frame) | PortProbe on Weston: shapes, Pango text with emoji, the Vulkan 3D context's cube | Form3DProbe on Weston: a `TForm3D` with ray-traced shadows and ambient occlusion |
+| KWin 6.6 at 1.5: Hello on FastCanvas (the drop-down read back into FireLinux's frame) | PortProbe on Weston: shapes, Pango text with emoji, the Vulkan 3D context's cube | Form3DProbe on Weston: a `TForm3D` with ray-traced shadows and ambient occlusion |
 |---|---|---|
 | ![KWin](docs/screenshots/fastcanvas-kwin-scale1.5-combo.png) | ![PortProbe](docs/screenshots/fastcanvas-portprobe-weston.png) | ![Form3DProbe](docs/screenshots/fastcanvas-form3d-weston.png) |
 
-## IFMXWaylandNativeWindow (contract for GPU canvases)
+## IFireLinuxNativeWindow (contract for GPU canvases)
 
 A GPU canvas (FastCanvas on Vulkan) creates its own `VkSurfaceKHR` for a window with
-`vkCreateWaylandSurfaceKHR(wl_display, wl_surface)`. FMXWayland registers, when it connects (in `FmuxInit`, during
+`vkCreateWaylandSurfaceKHR(wl_display, wl_surface)`. FireLinux registers, when it connects (in `FmuxInit`, during
 the initialization of `FMX.Platform`), an FMX platform service:
 
 ```pascal
 type
-  IFMXWaylandNativeWindow = interface
+  IFireLinuxNativeWindow = interface
     ['{B04A2FBC-1322-42BC-98A6-D526A7854F2C}']
     function GetWaylandDisplay: Pointer;                                   // wl_display*
-    function GetWaylandSurface(const AHandle: TWindowHandle): Pointer;     // wl_surface*, nil if not an FMXWayland window
+    function GetWaylandSurface(const AHandle: TWindowHandle): Pointer;     // wl_surface*, nil if not an FireLinux window
     function GetBufferSize(const AHandle: TWindowHandle): TSize;           // buffer pixels = client size x scale
     function GetScale(const AHandle: TWindowHandle): Single;               // buffer pixels per logical pixel
     procedure SetExternalPresentation(const AHandle: TWindowHandle; const AValue: Boolean);
   end;
 ```
 
-A library that must not depend on FMXWayland declares the same interface (same GUID, same methods in the same order,
+A library that must not depend on FireLinux declares the same interface (same GUID, same methods in the same order,
 same signatures; Delphi's default calling convention) and asks with
-`TPlatformServices.Current.SupportsPlatformService(IFMXWaylandNativeWindow, Svc)` (`samples\Hello` does exactly
+`TPlatformServices.Current.SupportsPlatformService(IFireLinuxNativeWindow, Svc)` (`samples\Hello` does exactly
 that). Never change this declaration; extensions get a new interface with a new GUID. The rules:
 
 - The `wl_surface` is the window's content surface: it lives as long as the FMX window handle (also across
@@ -773,41 +766,41 @@ that). Never change this declaration; extensions get a new interface with a new 
   client-side decorations are a separate subsurface.
 - `GetBufferSize`/`GetScale` change on resize and scale changes; FMX resizes its canvas then (form resize, and
   `TScaleChangedMessage` for scale changes).
-- `SetExternalPresentation(Handle, True)`: FMXWayland keeps calling FMX's paint (the canvas renders and presents in
+- `SetExternalPresentation(Handle, True)`: FireLinux keeps calling FMX's paint (the canvas renders and presents in
   `EndScene` or later, from a thread of its own), but stops attaching its own wl_shm frames. The surface gets a
   `wp_viewport` (where the compositor has `wp_viewporter`, all tested ones do) whose destination is the window's
   logical size, with buffer scale 1: a buffer of any size the presenter commits is valid and fills the window (a
   frame painted before a resize or a scale change; without the viewport an odd-sized buffer at buffer scale 2 would
-  be a protocol error). FMXWayland still owns the viewport, the window geometry and the decoration subsurface; that
+  be a protocol error). FireLinux still owns the viewport, the window geometry and the decoration subsurface; that
   state is double-buffered and takes effect with whichever commit of the presenter (`vkQueuePresentKHR`) comes next.
-  So that any such commit is valid for the configure acknowledged before it, FMXWayland sends that state right next
+  So that any such commit is valid for the configure acknowledged before it, FireLinux sends that state right next
   to the acknowledgement, before FMX hears of the configure (into maximized or fullscreen the new geometry first, out
   of it the acknowledgement first: Weston raises `invalid_surface_state` when a maximized window's geometry is not
-  the configured size), and again before every paint. There are no frame callbacks of FMXWayland then: FMX paints
+  the configured size), and again before every paint. There are no frame callbacks of FireLinux then: FMX paints
   when it invalidates (its animations and timers), the presenter paces its own frames.
 - The window counts as mapped (its popups are made, `CanParentPopups`) once the first paint after it was shown has
   returned: the presenter should have committed that frame by then (FastCanvas waits until its first frame of a
   window is presented).
-- Before FMXWayland unmaps a window (FMX hides the form: `FmuxShowWindow(False)`, which attaches no buffer) the
-  presenter must have stopped presenting to it, and it must not present again before FMXWayland paints the window
+- Before FireLinux unmaps a window (FMX hides the form: `FmuxShowWindow(False)`, which attaches no buffer) the
+  presenter must have stopped presenting to it, and it must not present again before FireLinux paints the window
   after the compositor configured it again (a buffer committed to an unmapped xdg_surface is a protocol error).
-  FastCanvas wraps FMX's `IFMXWindowService` for this (`HideWindow`, `ReleaseWindow`). FMXWayland itself unmaps
+  FastCanvas wraps FMX's `IFMXWindowService` for this (`HideWindow`, `ReleaseWindow`). FireLinux itself unmaps
   popups when they move or resize (a new xdg_popup), which no presenter can follow: present popups through
-  FMXWayland's frames (FastCanvas reads their frames back into the paint context with `FmuxCanvasDrawBitmap`).
-- Everything is on the main thread; FMXWayland dispatches only the default event queue, with the
+  FireLinux's frames (FastCanvas reads their frames back into the paint context with `FmuxCanvasDrawBitmap`).
+- Everything is on the main thread; FireLinux dispatches only the default event queue, with the
   `wl_display_prepare_read` protocol, so Vulkan WSI's own queue can coexist (Mesa's WSI reads and dispatches its
   queue on the presenting thread).
 
-## IFMXWaylandWindowFrame (for programs with their own title bar)
+## IFireLinuxWindowFrame (for programs with their own title bar)
 
 A program that draws its own title bar (FMR Ribbon's integrated caption and tab row, a Chrome-like tab strip, ...)
 needs the platform to stop decorating its window and to start interactive moves and resizes for it:
 `xdg_toplevel.move`/`resize`/`show_window_menu` need the `wl_seat` and the serial of the pressing input event, which
-only the platform has. FMXWayland registers this FMX platform service in `FmuxInit`, next to
-`IFMXWaylandNativeWindow`. The declaration is FMR Ribbon's (`Source\Frame\FMR.Frame.Wayland.pas`, its
-`Docs\LINUX.md`); FMXWayland has it in `FMXWayland.Frame`. A program declares the same interfaces (same GUIDs, the
+only the platform has. FireLinux registers this FMX platform service in `FmuxInit`, next to
+`IFireLinuxNativeWindow`. The declaration is FMR Ribbon's (`Source\Frame\FMR.Frame.Wayland.pas`, its
+`Docs\LINUX.md`); FireLinux has it in `FireLinux.Frame`. A program declares the same interfaces (same GUIDs, the
 same methods in the same order, the same signatures, Delphi's default calling convention) and asks with
-`TPlatformServices.Current.SupportsPlatformService(IFMXWaylandWindowFrame, Svc)`; neither depends on the other. Never
+`TPlatformServices.Current.SupportsPlatformService(IFireLinuxWindowFrame, Svc)`; neither depends on the other. Never
 change it; extensions get a new interface with a new GUID.
 
 ```pascal
@@ -824,12 +817,12 @@ const
   FmxwCapsUnknown = Cardinal($FFFFFFFF);
 
 type
-  IFMXWaylandWindowFrameListener = interface
+  IFireLinuxWindowFrameListener = interface
     ['{785C5760-E413-4153-82DF-E857D1AA70AC}']
     procedure WindowFrameChanged(const AHandle: TWindowHandle; const AStates, ACapabilities: Cardinal);
   end;
 
-  IFMXWaylandWindowFrame = interface
+  IFireLinuxWindowFrame = interface
     ['{547B5786-5639-43A4-A598-1A03B465783A}']
     procedure SetDecorated(const AHandle: TWindowHandle; const AValue: Boolean);
     function GetDecorated(const AHandle: TWindowHandle): Boolean;
@@ -840,21 +833,21 @@ type
     procedure SetMaximized(const AHandle: TWindowHandle; const AValue: Boolean);
     function GetStates(const AHandle: TWindowHandle): Cardinal;
     function GetCapabilities(const AHandle: TWindowHandle): Cardinal;
-    procedure SetFrameListener(const AHandle: TWindowHandle; const AListener: IFMXWaylandWindowFrameListener);
+    procedure SetFrameListener(const AHandle: TWindowHandle; const AListener: IFireLinuxWindowFrameListener);
   end;
 ```
 
-`AHandle` is the form's `Handle`. Handles that are not toplevels of FMXWayland (popups, foreign handles): the methods
+`AHandle` is the form's `Handle`. Handles that are not toplevels of FireLinux (popups, foreign handles): the methods
 do nothing and return False/0. Main thread only.
 
-| Method | What FMXWayland does |
+| Method | What FireLinux does |
 |---|---|
 | `SetDecorated(H, False)` | No decorations at all: the client-side title bar (subsurface) goes, and where the compositor has xdg-decoration it is asked for `client_side` (KWin and sway draw none then). Kept for the window: configures, the compositor's decoration answers and hide/show do not bring them back. The window geometry is the surface (`set_window_geometry(0, 0, w, h)`), `DecorationInsets` are 0, FMX's window rectangle is the client rectangle. **Before the window's first show** (a form's constructor, `FormCreate`, FMR's frame attaching to a new form) only the choice is recorded: nothing is reported to FMX and the window's size is not touched, so the `Width`/`Height` the program gave the form (before or after the call) stay and become the client area when the form is shown (FMX keeps a form's size to itself until its first show and sets it then). **Once the window has been shown** it keeps its outer size and place (the client area takes the room of the decorations; a maximized window must keep the configured size) and FMX gets the new bounds and realigns; a hidden window keeps its client size. `True`: the platform's choice again (`server_side` asked, or its own title bar), with the same rules. |
-| `GetDecorated(H)` | True while the window has FMXWayland's title bar, or the compositor's (asked for and not refused). |
+| `GetDecorated(H)` | True while the window has FireLinux's title bar, or the compositor's (asked for and not refused). |
 | `BeginMove(H)` | True when the latest pointer button press on any surface of the window (its content or its title bar) is still held. The move itself (`xdg_toplevel.move` with that press's serial) starts when the pointer has been dragged 4 pixels with the button held, as GTK does: a click or a double click on the caption stays a click (no button release lost to the compositor; GNOME Shell put a maximized window restored right after a move that started at the first click of a double click to the top left corner). False without a held press, for popups. |
 | `BeginResize(H, Edges)` | `xdg_toplevel.resize` with the held press's serial at once; False without one or for an edge value that is not one of xdg-shell's (a protocol error otherwise). |
 | `ShowWindowMenu(H, P)` | `xdg_toplevel.show_window_menu` at `P` (client = surface coordinates) with the held press's serial; False without one or without the `window_menu` capability. |
-| `Minimize(H)` | `xdg_toplevel.set_minimized` where the window manager can minimize (not sway); FMX's `WindowState` becomes `wsMinimized` (Wayland does not tell; the next activation brings `wsNormal` back), as the minimize button of FMXWayland's title bar does. |
+| `Minimize(H)` | `xdg_toplevel.set_minimized` where the window manager can minimize (not sway); FMX's `WindowState` becomes `wsMinimized` (Wayland does not tell; the next activation brings `wsNormal` back), as the minimize button of FireLinux's title bar does. |
 | `SetMaximized(H, V)` | `set_maximized` / `unset_maximized`; the state follows with the configure (`WindowState`, the listener). |
 | `GetStates(H)` | Bits `1 shl state` of the last configure (0 before the first). |
 | `GetCapabilities(H)` | Bits `1 shl capability` of `xdg_toplevel.wm_capabilities`; `$FFFFFFFF` when the compositor never sent them (before the first configure too). |
@@ -881,7 +874,7 @@ scale) and follows sizes set from code later. What the compositors do with it ([
 | Window menu (right click) | n/a (no `window_menu`) | n/a (no `window_menu`) | pass (KWin's menu) | pass (GNOME Shell's menu) |
 | Activation in the listener (another window focused and closed) | — (no focus headless) | pass | pass | pass |
 | Minimize, shown again by the compositor | — | n/a (no minimize) | pass | pass |
-| Decorations back (`SetDecorated(True)`) and off again | pass: FMXWayland's title bar, same outer size | pass: sway's; sway keeps the outer size of the floating window, the client area stays smaller by its title bar | pass: Breeze; likewise | pass: FMXWayland's |
+| Decorations back (`SetDecorated(True)`) and off again | pass: FireLinux's title bar, same outer size | pass: sway's; sway keeps the outer size of the floating window, the client area stays smaller by its title bar | pass: Breeze; likewise | pass: FireLinux's |
 
 | GNOME Shell 50: the program's title bar, GNOME Shell's window menu after a right click on it | KWin 6.6: likewise, KWin's window menu |
 |---|---|
@@ -915,7 +908,7 @@ canvas on Weston 14 and sway 1.11. 108 of 186 FMUX functions are assigned; the f
 | OpenGL contexts | FmuxCreateSharedContext, FmuxCreateThreadContext, FmuxMakeCurrentContext | EGL; shared desktop GL contexts for TViewport3D |
 | PDF canvas | FmuxCreatePDFContext | stub |
 | Fonts | FmuxGetFontCount, FmuxGetFontName (the system's families); FmuxAddCustomFont, FmuxAddCustomFontFromData; FMX's IFMXSystemFontService (default font: GNOME's font-name through the settings portal, else fontconfig's sans-serif) | partial / stub; service implemented |
-| Main menu | IFMXMenuService / FMXWayland.Menus | TMainMenu rendered inside the window; xdg_popup submenus; legacy FMUX menu slots bypassed |
+| Main menu | IFMXMenuService / FireLinux.Menus | TMainMenu rendered inside the window; xdg_popup submenus; legacy FMUX menu slots bypassed |
 | Printing, PDF | FmuxEnumPrinters ... FmuxSetAlwaysAskOutputFile | stub |
 | Web view, media, video capture | FmuxCreateWebView..., FmuxCreateMedia..., FmuxCaptureDeviceEnum... | stub |
 | Shell | FmuxOpenFile, FmuxOpenUrl, FmuxGetFileIcon, FmuxGetFileType | stub |
@@ -931,7 +924,7 @@ canvas on Weston 14 and sway 1.11. 108 of 186 FMUX functions are assigned; the f
   invalidates; with `MAILBOX` the presenter may draw more frames than the output shows); the acknowledgement of a
   configure is sent next to the new size's state, not in the presenter's commit, so a commit of the presenter's
   thread can still fall between the two (a window going from one maximized size to another: not seen in the tests);
-  popups and transparent forms of a GPU canvas go through FMXWayland's frames (FastCanvas reads them back); tested on
+  popups and transparent forms of a GPU canvas go through FireLinux's frames (FastCanvas reads them back); tested on
   lavapipe only (WSL has no GPU driver with Wayland presentation).
 - Clipboard images and custom formats, touch and gestures, tooltips, printing, web browser, media player.
 - X11 currently omits Wayland-specific drag and drop, text-input-v3 and the xdg-toplevel-icon protocol.
@@ -949,7 +942,7 @@ canvas on Weston 14 and sway 1.11. 108 of 186 FMUX functions are assigned; the f
   KWin and GNOME Shell focus it). Without an input event yet (no serial) compositors may refuse.
 - On compositors without maximize (sway: `wm_capabilities` lists only fullscreen) `WindowState := wsMaximized` is
   ignored by the compositor while FMX keeps `wsMaximized`.
-- `IFMXWaylandWindowFrame`: no touch (FMXWayland has no `wl_touch` yet; only pointer presses start moves and
+- `IFireLinuxWindowFrame`: no touch (FireLinux has no `wl_touch` yet; only pointer presses start moves and
   resizes); no window geometry insets for shadows and invisible resize borders outside the window (a later interface).
   A move starts on the drag, not at the press (see the table): a program that waits for the compositor's grab at the
   press itself sees it a few pixels later.
@@ -962,7 +955,7 @@ canvas on Weston 14 and sway 1.11. 108 of 186 FMUX functions are assigned; the f
 - FMX frees a form's controls after its window handle: a form freed while a combo box's drop-down is open (closed by
   code, not by the user, whose close goes through FMX's popup handling first) ends in an access violation in FMX
   (`TCustomForm.DoRemoveObject` asks the gone window for its client size; on Windows the same program hangs at
-  exit, so it is FMX's, not FMXWayland's to fix). Close the drop-downs of a form before freeing it from code, e.g.:
+  exit, so it is FMX's, not FireLinux's to fix). Close the drop-downs of a form before freeing it from code, e.g.:
 
   ```pascal
   procedure CloseDropDowns(const ARoot: TFmxObject); // uses FMX.ListBox, FMX.ComboEdit
@@ -982,14 +975,14 @@ canvas on Weston 14 and sway 1.11. 108 of 186 FMUX functions are assigned; the f
 
 ## Next steps
 
-1. **External presentation**: pacing by the compositor (an `IFMXWaylandNativeWindow2` through which the presenter
-   tells FMXWayland that it committed a frame, so that frame callbacks drive FMX's paints as with wl_shm frames;
+1. **External presentation**: pacing by the compositor (an `IFireLinuxNativeWindow2` through which the presenter
+   tells FireLinux that it committed a frame, so that frame callbacks drive FMX's paints as with wl_shm frames;
    now FMX paints at the pace of its invalidations), and the acknowledgement of a configure in the presenter's own
-   commit (now FMXWayland sends it next to the new size's state: a commit of the presenter's thread can fall in
+   commit (now FireLinux sends it next to the new size's state: a commit of the presenter's thread can fall in
    between).
 2. **IME**: text-input-v1 for older WSLg, and an extension for precise preedit cursor and segment styling.
 3. **Decorations**: polish the client-side ones (shadows, theme colors, `prefers-color-scheme` through the portal).
-   xdg-decoration where offered, the tests on KWin, sway and GNOME Shell and `IFMXWaylandWindowFrame` for programs
+   xdg-decoration where offered, the tests on KWin, sway and GNOME Shell and `IFireLinuxWindowFrame` for programs
    with their own title bar are done; next for it: window geometry insets (shadows, resize borders outside the
    window), the desktop's dark/light preference (settings portal; GNOME's font is read through it already).
 4. **Clipboard and drag and drop**: image and custom clipboard formats, primary selection and more drag MIME types.
@@ -998,13 +991,13 @@ canvas on Weston 14 and sway 1.11. 108 of 186 FMUX functions are assigned; the f
 6. **Menus**: optional desktop global-menu export and accessibility integration.
 7. Popup grabs, popup repositioning and touch events.
 8. **X11**: extend screen support with RandR and add XIM.
-9. Packaging: a design-time/package setup so the IDE builds Linux FMX projects with FMXWayland without copying paths.
+9. Packaging: a design-time/package setup so the IDE builds Linux FMX projects with FireLinux without copying paths.
 
 ## Contributors
 
 - **[Hemul GM](https://github.com/HemulGM)** — FMX's default Linux canvas on cairo, Pango and gdk-pixbuf
-  (`FMXWayland.Cairo`, `FMXWayland.CairoApi`): ordinary FMX programs draw on FMXWayland without Skia; dialogs
-  (`FMXWayland.DBus`, `FMXWayland.Portal`, `FMXWayland.Dialogs`, `FMXWayland.DialogTypes`, `FMXWayland.FileDialog`):
+  (`FireLinux.Cairo`, `FireLinux.CairoApi`): ordinary FMX programs draw on FireLinux without Skia; dialogs
+  (`FireLinux.DBus`, `FireLinux.Portal`, `FireLinux.Dialogs`, `FireLinux.DialogTypes`, `FireLinux.FileDialog`):
   a D-Bus client in Pascal, the xdg-desktop-portal file dialogs, FMX's own file dialog and the replaceable dialog
   backend.
 

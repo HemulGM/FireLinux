@@ -4,7 +4,7 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Types, System.UITypes, System.Classes,
   FMX.Forms, FMX.Types, FMX.Types3D, FMX.Graphics, FMUX.Api, Linuxapi.OpenGL,
-  FMXWayland.OpenGL,
+  FireLinux.OpenGL,
   HelloMain,
   HelloWindow;
 

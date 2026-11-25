@@ -1,6 +1,6 @@
 ﻿program Hello;
 
-{ FMXWayland sample: streamed FMX forms with tabs for controls, animations/images, dialogs and the platform.
+{ FireLinux sample: streamed FMX forms with tabs for controls, animations/images, dialogs and the platform.
 
   Command line:
     --quit-after=N   closes the main form after N seconds (tests: clean exit)
@@ -16,92 +16,63 @@ uses
   System.SysUtils,
   FMX.Forms,
   FMX.Types,
-{$IFDEF FMXWAYLAND_DPROJ}
-  // The MSBuild pre-build generates this file for the selected configuration.
-  // It must take precedence over FMUX.Api.pas beside the project from older builds.
-  {$IFDEF DEBUG}
-  FMUX.Api in '..\..\gen\Linux64\Debug\FMUX.Api.pas',
-  {$ELSE}
-  FMUX.Api in '..\..\gen\Linux64\Release\FMUX.Api.pas',
-  {$ENDIF}
-{$ENDIF}
-{$IF Defined(FASTCANVAS)}
-  HelloFastCanvas in 'HelloFastCanvas.pas',
-{$ELSEIF Defined(SKIA) and not Defined(NOSKIA)}
-  FMX.Skia,
-{$IFEND}
+  FMUX.Api in '..\..\src\FMUX.Api.pas',
   HelloBackendProbe in 'HelloBackendProbe.pas' {HelloBackendProbeForm},
   HelloTitleBar in 'HelloTitleBar.pas',
   HelloMain in 'HelloMain.pas' {HelloForm},
   HelloWindow in 'HelloWindow.pas' {DemoWindow},
-  FMXWayland.Fmux in '..\..\src\FMXWayland.Fmux.pas',
-  FMXWayland.Vulkan in '..\..\src\FMXWayland.Vulkan.pas',
-  FMXWayland.VulkanApi in '..\..\src\FMXWayland.VulkanApi.pas',
-  FMXWayland.VulkanDevice in '..\..\src\FMXWayland.VulkanDevice.pas',
-  FMXWayland.OpenGL in '..\..\src\FMXWayland.OpenGL.pas',
-  FMXWayland.Cairo in '..\..\src\FMXWayland.Cairo.pas',
-  FMXWayland.CairoApi in '..\..\src\FMXWayland.CairoApi.pas',
-  FMXWayland.DBus in '..\..\src\FMXWayland.DBus.pas',
-  FMXWayland.DialogTypes in '..\..\src\FMXWayland.DialogTypes.pas',
-  FMXWayland.Dialogs in '..\..\src\FMXWayland.Dialogs.pas',
-  FMXWayland.FileDialog in '..\..\src\FMXWayland.FileDialog.pas' {FMXWaylandFileDialog},
-  FMXWayland.Portal in '..\..\src\FMXWayland.Portal.pas',
-  FMXWayland.Keys in '..\..\src\FMXWayland.Keys.pas',
-  FMXWayland.Log in '..\..\src\FMXWayland.Log.pas',
-  FMXWayland.Native in '..\..\src\FMXWayland.Native.pas',
-  FMXWayland.Platform in '..\..\src\FMXWayland.Platform.pas',
-  FMXWayland.DragDrop in '..\..\src\FMXWayland.DragDrop.pas',
-  FMXWayland.Menus in '..\..\src\FMXWayland.Menus.pas' {FMXWaylandMainMenuView: TFrame},
-  FMXWayland.TextInput in '..\..\src\FMXWayland.TextInput.pas',
-  FMXWayland.Posix in '..\..\src\FMXWayland.Posix.pas',
-  FMXWayland.Wayland in '..\..\src\FMXWayland.Wayland.pas',
-  FMXWayland.WaylandCursor in '..\..\src\FMXWayland.WaylandCursor.pas',
-  FMXWayland.Xkb in '..\..\src\FMXWayland.Xkb.pas',
-  FMXWayland.Protocol.CursorShapeV1 in '..\..\src\Protocols\FMXWayland.Protocol.CursorShapeV1.pas',
-  FMXWayland.Protocol.FractionalScaleV1 in '..\..\src\Protocols\FMXWayland.Protocol.FractionalScaleV1.pas',
-  FMXWayland.Protocol.TabletV2 in '..\..\src\Protocols\FMXWayland.Protocol.TabletV2.pas',
-  FMXWayland.Protocol.TextInputUnstableV3 in '..\..\src\Protocols\FMXWayland.Protocol.TextInputUnstableV3.pas',
-  FMXWayland.Protocol.Viewporter in '..\..\src\Protocols\FMXWayland.Protocol.Viewporter.pas',
-  FMXWayland.Protocol.Wayland in '..\..\src\Protocols\FMXWayland.Protocol.Wayland.pas',
-  FMXWayland.Protocol.XdgActivationV1 in '..\..\src\Protocols\FMXWayland.Protocol.XdgActivationV1.pas',
-  FMXWayland.Protocol.XdgDecorationUnstableV1 in '..\..\src\Protocols\FMXWayland.Protocol.XdgDecorationUnstableV1.pas',
-  FMXWayland.Protocol.XdgToplevelIconV1 in '..\..\src\Protocols\FMXWayland.Protocol.XdgToplevelIconV1.pas',
-  FMXWayland.Protocol.XdgForeignUnstableV2 in '..\..\src\Protocols\FMXWayland.Protocol.XdgForeignUnstableV2.pas',
-  FMXWayland.Protocol.XdgShell in '..\..\src\Protocols\FMXWayland.Protocol.XdgShell.pas';
+  FireLinux.Wayland.Fmux in '..\..\src\Backends\Wayland\FireLinux.Wayland.Fmux.pas',
+  FireLinux.Vulkan in '..\..\src\Rendering\FireLinux.Vulkan.pas',
+  FireLinux.VulkanApi in '..\..\src\Rendering\FireLinux.VulkanApi.pas',
+  FireLinux.VulkanDevice in '..\..\src\Rendering\FireLinux.VulkanDevice.pas',
+  FireLinux.OpenGL in '..\..\src\Rendering\FireLinux.OpenGL.pas',
+  FireLinux.Cairo in '..\..\src\Rendering\FireLinux.Cairo.pas',
+  FireLinux.CairoApi in '..\..\src\Rendering\FireLinux.CairoApi.pas',
+  FireLinux.DBus in '..\..\src\Dialogs\FireLinux.DBus.pas',
+  FireLinux.DialogTypes in '..\..\src\Dialogs\FireLinux.DialogTypes.pas',
+  FireLinux.Dialogs in '..\..\src\Dialogs\FireLinux.Dialogs.pas',
+  FireLinux.FileDialog in '..\..\src\Dialogs\FireLinux.FileDialog.pas' {FireLinuxFileDialog},
+  FireLinux.Portal in '..\..\src\Dialogs\FireLinux.Portal.pas',
+  FireLinux.Keys in '..\..\src\FireLinux.Keys.pas',
+  FireLinux.Log in '..\..\src\FireLinux.Log.pas',
+  FireLinux.Wayland.Native in '..\..\src\Backends\Wayland\FireLinux.Wayland.Native.pas',
+  FireLinux.Wayland.Platform in '..\..\src\Backends\Wayland\FireLinux.Wayland.Platform.pas',
+  FireLinux.Wayland.DragDrop in '..\..\src\Backends\Wayland\FireLinux.Wayland.DragDrop.pas',
+  FireLinux.Menus in '..\..\src\FireLinux.Menus.pas' {FireLinuxMainMenuView: TFrame},
+  FireLinux.Wayland.TextInput in '..\..\src\Backends\Wayland\FireLinux.Wayland.TextInput.pas',
+  FireLinux.Posix in '..\..\src\FireLinux.Posix.pas',
+  FireLinux.Wayland.Client in '..\..\src\Backends\Wayland\FireLinux.Wayland.Client.pas',
+  FireLinux.Wayland.Cursor in '..\..\src\Backends\Wayland\FireLinux.Wayland.Cursor.pas',
+  FireLinux.Xkb in '..\..\src\FireLinux.Xkb.pas',
+  FireLinux.Wayland.Protocol.CursorShapeV1 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.CursorShapeV1.pas',
+  FireLinux.Wayland.Protocol.FractionalScaleV1 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.FractionalScaleV1.pas',
+  FireLinux.Wayland.Protocol.TabletV2 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.TabletV2.pas',
+  FireLinux.Wayland.Protocol.TextInputUnstableV3 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.TextInputUnstableV3.pas',
+  FireLinux.Wayland.Protocol.Viewporter in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.Viewporter.pas',
+  FireLinux.Wayland.Protocol.Wayland in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.Wayland.pas',
+  FireLinux.Wayland.Protocol.XdgActivationV1 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgActivationV1.pas',
+  FireLinux.Wayland.Protocol.XdgDecorationUnstableV1 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgDecorationUnstableV1.pas',
+  FireLinux.Wayland.Protocol.XdgToplevelIconV1 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgToplevelIconV1.pas',
+  FireLinux.Wayland.Protocol.XdgForeignUnstableV2 in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgForeignUnstableV2.pas',
+  FireLinux.Wayland.Protocol.XdgShell in '..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgShell.pas',
+  FireLinux.FmuxLoad in '..\..\src\FireLinux.FmuxLoad.pas',
+  FireLinux.Frame in '..\..\src\FireLinux.Frame.pas',
+  FireLinux.SystemFont in '..\..\src\FireLinux.SystemFont.pas',
+  FireLinux.X11.Fmux in '..\..\src\Backends\X11\FireLinux.X11.Fmux.pas',
+  FireLinux.X11.Xlib in '..\..\src\Backends\X11\FireLinux.X11.Xlib.pas',
+  FireLinux.Backend.Factory in '..\..\src\FireLinux.Backend.Factory.pas',
+  FireLinux.Fmux in '..\..\src\FireLinux.Fmux.pas',
+  FireLinux.RasterFrame in '..\..\src\Rendering\FireLinux.RasterFrame.pas';
 
 var
   Backend3D: string;
   TitleBarForm: TTitleBarForm;
   BackendProbe: Boolean;
-{$IFDEF FASTCANVAS}
-  Reason: string;
-{$ENDIF}
 
 begin
-{$IF Defined(FASTCANVAS)}
-  // FastCanvas on Vulkan; FMX's own canvas when there is no Vulkan device it can use.
-  if InstallHelloFastCanvas(Reason) then
-  begin
-    HelloCanvasInfo := HelloFastCanvasInfo;
-    HelloSaveFrame :=
-      function(AForm: TCommonCustomForm; AFileName: string): string
-      begin
-        Result := SaveHelloFastCanvasFrame(AForm, AFileName);
-      end;
-    HelloPresentation := 'Vulkan, VK_KHR_wayland_surface';
-  end
-  else
-    HelloCanvasInfo :=
-      function: string
-      begin
-        Result := 'FastCanvas not installed: ' + Reason;
-      end;
-{$ELSEIF Defined(SKIA) and not Defined(NOSKIA)}
-  GlobalUseSkia := True;
-{$IFEND}
   Application.Initialize;
   BackendProbe := False;
-  Backend3D := GetEnvironmentVariable('FMXWAYLAND_3D_BACKEND').ToLower;
+  Backend3D := GetEnvironmentVariable('FIRELINUX_3D_BACKEND').ToLower;
   for var I := 1 to ParamCount do
   begin
     if ParamStr(I).StartsWith('--3d=') then

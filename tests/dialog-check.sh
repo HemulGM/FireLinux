@@ -59,7 +59,7 @@ export WAYLAND_DISPLAY=fmxw-test
 cd "$(dirname "$PROG")"
 DBUS_SESSION_BUS_ADDRESS="unix:path=$RT/missing-bus;unix:abstract=$ABSTRACT,guid=00112233445566778899aabbccddeeff" \
   DC_BUS_PATH="$RT/dc-bus" DC_PORTAL_BUS="unix:path=$RT/portal-bus" DC_OLD_PORTAL_BUS="unix:path=$RT/old-portal-bus" \
-  FMXWAYLAND_LOG=2 timeout 60 "$PROG" > "$OUT/program.log" 2>&1
+  FIRELINUX_LOG=2 timeout 60 "$PROG" > "$OUT/program.log" 2>&1
 echo "exit=$?" >> "$OUT/program.log"
 kill $WPID $BPID 2>/dev/null
 wait 2>/dev/null

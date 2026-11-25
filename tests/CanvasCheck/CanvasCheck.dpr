@@ -1,6 +1,6 @@
 ﻿program CanvasCheck;
 
-{ FMXWayland canvas check: one form that draws what FMX's canvases must agree on (gradients and opacity, dashes and
+{ FireLinux canvas check: one form that draws what FMX's canvases must agree on (gradients and opacity, dashes and
   caps, bitmap brushes, scaled and partial bitmaps, the PNG codec, text beyond the BMP, wrapping, alignment,
   trimming, styles, rotation, text as a path, a degenerate matrix), to compare the Skia raster canvas with FMX's
   cairo canvas (define NOSKIA). tests\canvas-check.ps1 builds and runs both and puts their frames side by side.

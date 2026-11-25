@@ -226,7 +226,7 @@ class WaylandInput:
         self.mods = 0
         if 'org_kde_kwin_fake_input' in g:
             self.fake = self.wl.bind('org_kde_kwin_fake_input', 4)
-            self.wl.request(self.fake, 0, 'ss', 'FMXWayland tests', 'input for the tests')
+            self.wl.request(self.fake, 0, 'ss', 'FireLinux tests', 'input for the tests')
         else:
             if 'zwlr_virtual_pointer_manager_v1' in g:
                 m = self.wl.bind('zwlr_virtual_pointer_manager_v1', 1)

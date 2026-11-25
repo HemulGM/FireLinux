@@ -13,7 +13,7 @@
   .\tests\hello-e2e.ps1
 #>
 param(
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build',
   [string] $Distro = 'Ubuntu-26.04',
   [string] $Config = 'Release'
 )
@@ -33,7 +33,7 @@ $wslLog = '/mnt/' + $logFile.Substring(0, 1).ToLower() + $logFile.Substring(2).R
 Remove-Item $logFile -ErrorAction SilentlyContinue
 
 $script = @"
-export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir WAYLAND_DISPLAY=wayland-0 FMXWAYLAND_LOG=1
+export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir WAYLAND_DISPLAY=wayland-0 FIRELINUX_LOG=1
 unset DISPLAY
 cd "`$(dirname $wslExe)"
 timeout 120 $wslExe --verbose --quit-after=75 > $wslLog 2>&1
@@ -50,7 +50,7 @@ function Check([string] $Name, [bool] $Ok, [string] $Detail = '') {
   $results.Add("$s  $Name $Detail")
   Write-Host "$s  $Name $Detail"
 }
-function Shot([string] $Name, [string] $Title = 'FMXWayland Hello', [int] $ExtendBottom = 0) {
+function Shot([string] $Name, [string] $Title = 'FireLinux Hello', [int] $ExtendBottom = 0) {
   # With the client-side decorations (title bar 30, borders 4).
   & $capture -Title $Title -Out (Join-Path $shots "$Name.png") -TimeoutSec 5 -ExtendLeft 4 -ExtendTop 30 `
     -ExtendRight 4 -ExtendBottom ($ExtendBottom + 4) | Out-Null
@@ -85,7 +85,7 @@ function WaitLog([string] $Pattern, [int] $TimeoutMs = 3000) {
 $saved = Get-PointerPosition
 $savedClipboard = Get-Clipboard -Raw -ErrorAction SilentlyContinue
 try {
-  $w = Find-TopWindow 'FMXWayland Hello' 30
+  $w = Find-TopWindow 'FireLinux Hello' 30
   if (-not $w) { throw 'The Hello window did not appear' }
   Check 'window appears' $true "($($w.Width)x$($w.Height) at $($w.Left),$($w.Top))"
   Set-TopWindowTopmost $w
@@ -156,7 +156,7 @@ try {
 
   # Combo box: the drop-down list is an xdg_popup (a separate window for WSLg: the main one must not be topmost).
   Set-TopWindowTopmost $w $false
-  [void](Find-TopWindow 'FMXWayland Hello' 1)
+  [void](Find-TopWindow 'FireLinux Hello' 1)
   ClickControl $w 'ColorCombo'
   Start-Sleep -Milliseconds 1200
   Shot '05-combo-open' -ExtendBottom 200
@@ -235,32 +235,32 @@ try {
   Invoke-Click $w ($w.Width - 60) -14
   Check 'title bar maximize button' (WaitMore 'resize \d+x\d+ state 2' $n) ''
   Start-Sleep -Milliseconds 1000
-  $wm = Find-TopWindow 'FMXWayland Hello' 5
+  $wm = Find-TopWindow 'FireLinux Hello' 5
   $n = CountLog 'resize 900x700 state 0'
   ClickControl $wm 'MaximizeButton'
   Check 'restore after the title bar maximize' (WaitMore 'resize 900x700 state 0' $n) ''
   Start-Sleep -Milliseconds 1000
-  $w = Find-TopWindow 'FMXWayland Hello' 5
+  $w = Find-TopWindow 'FireLinux Hello' 5
 
   # Maximize (xdg_toplevel.set_maximized -> configure with the new size -> FMX resize) and back.
   $n = CountLog 'resize \d+x\d+ state 2'
   ClickControl $w 'MaximizeButton'
   Check 'maximize: the compositor resizes the window' (WaitMore 'resize \d+x\d+ state 2' $n) ''
   Start-Sleep -Milliseconds 1000
-  $wm = Find-TopWindow 'FMXWayland Hello' 5
+  $wm = Find-TopWindow 'FireLinux Hello' 5
   Check 'maximized window is larger' ($wm.Width -gt 1000) "($($wm.Width)x$($wm.Height))"
   Shot '09-maximized'
   $n = CountLog 'resize 900x700 state 0'
   ClickControl $wm 'MaximizeButton'
   Check 'restore: back to 900x700' (WaitMore 'resize 900x700 state 0' $n) ''
   Start-Sleep -Milliseconds 1000
-  $w = Find-TopWindow 'FMXWayland Hello' 5
+  $w = Find-TopWindow 'FireLinux Hello' 5
 
   # Resize from code (FMX ClientWidth/ClientHeight -> new buffer size).
   ClickControl $w 'ResizeButton'
   Check 'resize from code' (WaitLog 'resized by code to 760x560') ''
   Start-Sleep -Milliseconds 1000
-  $w = Find-TopWindow 'FMXWayland Hello' 5
+  $w = Find-TopWindow 'FireLinux Hello' 5
   Check 'window has the new size' (($w.Width -eq 760) -and ($w.Height -eq 560)) "($($w.Width)x$($w.Height))"
 
   Move-PointerTo $w 500 250

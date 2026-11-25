@@ -1,33 +1,28 @@
-# FMXWayland (кратко по-русски)
+# FireLinux (кратко по-русски)
 
-Нативная платформа Wayland для Delphi FireMonkey (FMX) под Linux на Object Pascal — без закрытой библиотеки
-Embarcadero `libfmux.so` и без GTK. Программа FMX работает с композитором Wayland напрямую (libwayland-client и
-libxkbcommon загружаются через `dlopen`) и рисует стандартным Cairo-канвасом FMX в буферы общей памяти (wl_shm).
+FireLinux подключает приложения Delphi FireMonkey (FMX) к Wayland и X11 под Linux. Бэкенды написаны на Object
+Pascal и поддерживают стандартный канвас FMX на Cairo/Pango и опциональный растровый канвас Skia.
 
-**Резервный бэкенд X11.** при недоступности Wayland тот же исполняемый файл автоматически использует собственный
-X11-бэкенд через `libX11.so.6`, без GTK и libfmux. `FMXWAYLAND_BACKEND=auto` (по умолчанию) предпочитает Wayland;
-`FMXWAYLAND_BACKEND=x11` принудительно использует `DISPLAY`, `FMXWAYLAND_BACKEND=wayland` запрещает fallback.
-Выбор происходит при запуске, а не после потери соединения уже работающим приложением.
+При запуске `FIRELINUX_BACKEND=auto` выбирает Wayland при наличии соединения и переходит на X11 при ошибке.
+`FIRELINUX_BACKEND=wayland` и `FIRELINUX_BACKEND=x11` задают бэкенд явно.
 На X11 работают Cairo и Skia, окна и popup, ввод, таймеры, модальные формы, диалоги и текстовый буфер обмена
 (включая большие передачи INCR; приём до 16 МиБ за 5 секунд). Текущие ограничения X11: масштаб 1, один общий
 экран без RandR, геометрия клиентской области, без XIM/IME. Прозрачные окна и popup используют ARGB32
 при наличии композитора; без него Shape обрезает прозрачные поля (без полупрозрачной тени).
-Сервис собственного заголовка `IFMXWaylandWindowFrame` доступен и на X11: FMR Ribbon автоматически использует
+Сервис собственного заголовка `IFireLinuxWindowFrame` доступен и на X11: FMR Ribbon автоматически использует
 его для своей шапки, перемещения, resize и кнопок окна. Для старых оконных менеджеров вроде Xming есть
 собственные реализации перемещения/resize и разворачивания; системное меню доступно только при поддержке WM.
-Vulkan-презентация FastCanvas через `IFMXWaylandNativeWindow` остаётся Wayland-only. Проверки: `tests/x11-headless.sh`, подробности в README.md
+Vulkan-презентация FastCanvas через `IFireLinuxNativeWindow` остаётся Wayland-only. Проверки: `tests/x11-headless.sh`, подробности в README.md
 («X11 fallback»).
 
 Для итоговой проверки: `tests/x11-headless.ps1 -Server Xvfb` и `-Server Xorg` собирают и проверяют Cairo/Skia;
 `tests/xming.ps1 -XmingExe <путь>` запускает отдельный Xming. Команды, зависимости и известное ограничение
 больших INCR-передач при включённом мосте Xming `-clipboard` описаны в [docs/X11.md](docs/X11.md).
 
-**Как это устроено.** FMX для Linux вызывает libfmux через ~186 указателей на функции модуля `FMUX.Api`.
-Прекомпилированные модули FMX принимают другой `FMUX.Api` с тем же интерфейсом, поэтому `tools\gen-fmux-api.ps1`
-при сборке генерирует его: секция interface копируется из установленной Delphi (это код Embarcadero, в репозиторий
-не попадает), секция implementation наша — заглушки для всех функций и назначение реализованных из
-`FMXWayland.Fmux`. Логика `FMX.Platform.Linux` остаётся embarcaderовской. Протоколы Wayland переводятся в Pascal
-своим сканером `tools\gen-wayland.ps1`.
+**Как это устроено.** FMX для Linux обращается к libfmux через указатели на функции `FMUX.Api`.
+Обе конфигурации используют общий модуль [`src/FMUX.Api.pas`](src/FMUX.Api.pas) с ABI FMX Linux 1.82.
+Фабрика `FireLinux.Backend.Factory` назначает общие функции FMUX и выбирает адаптер из `src/Backends/Wayland` или `src/Backends/X11`.
+Протоколы Wayland переводятся в Pascal сканером `tools\gen-wayland.ps1`.
 
 **Что работает (фаза 1):** окна (xdg_toplevel), всплывающие окна (xdg_popup: списки комбобоксов, popup-меню),
 мышь, колесо, клавиатура (xkbcommon, автоповтор, dead keys, любые раскладки, сочетания по позиции клавиш), курсоры,
@@ -45,8 +40,8 @@ Vulkan-презентация FastCanvas через `IFMXWaylandNativeWindow` о
 решение остаётся за композитором. Иконка передаётся через `xdg-toplevel-icon-v1`, если
 он доступен, и отображается в клиентском заголовке.
 
-`FMXWAYLAND_DECORATIONS=client` запрашивает клиентскую рамку для всех окон с рамкой;
-`FMXWAYLAND_CSD=0` отключает её отрисовку. Глобальный StayOnTop и точные координаты
+`FIRELINUX_DECORATIONS=client` запрашивает клиентскую рамку для всех окон с рамкой;
+`FIRELINUX_CSD=0` отключает её отрисовку. Глобальный StayOnTop и точные координаты
 верхнеуровневого окна стандартный xdg-shell не предоставляет. StayOnTop связывает
 дочернее окно с главным; порядок относительно чужих приложений определяет композитор.
 Подробная [матрица настроек, ограничений и проверок](docs/window-management.md).
@@ -66,13 +61,13 @@ Vulkan-презентация FastCanvas через `IFMXWaylandNativeWindow` о
 На вкладке диалогов можно переключать автоматический выбор Portal → FMX и чистый FMX-бэкенд.
 PNG и JPEG встроены в FMX; исходные картинки лежат в `samples\Hello\assets`, в Deployment их добавлять
 не нужно. `--tab=images`, `--tab=dialogs`, `--tab=platform`, `--tab=drag`, `--tab=3d` выбирают начальную вкладку;
-`--selftest` проверяет окна, модальность, буфер обмена и переключение вкладок. `--backend-probe` открывает форму для тестов композиторов. `--own-titlebar` запускает пример собственного заголовка через `IFMXWaylandWindowFrame`.
+`--selftest` проверяет окна, модальность, буфер обмена и переключение вкладок. `--backend-probe` открывает форму для тестов композиторов. `--own-titlebar` запускает пример собственного заголовка через `IFireLinuxWindowFrame`.
 
 **Рисование:** геометрия, градиенты, прозрачность, матрицы и обрезка реализованы через Cairo; Unicode-текст,
 переносы, выделение и преобразование текста в контуры — через Pango; PNG/JPEG — через GdkPixbuf.
 Проверки пикселей, масштаба 2×, Unicode и кодеков: `tests\CairoChecks.dpr`.
 
-**3D / OpenGL:** `FMXWayland.OpenGL` реализует создание и активацию EGL-контекстов
+**3D / OpenGL:** `FireLinux.OpenGL` реализует создание и активацию EGL-контекстов
 для штатного `FMX.Context.Linux`. `TViewport3D` рисует меши, освещённые и текстурированные
 материалы с depth/stencil и MSAA в FBO; результат читается в BGRA-битмап и выводится Cairo.
 Главный и рабочие контексты разделяют текстуры. На вкладке `3D / OpenGL` — вращающийся куб
@@ -83,10 +78,10 @@ PNG и JPEG встроены в FMX; исходные картинки лежа�
 в WSLg с отключённым DISPLAY, Mesa 21.2.6 / OpenGL 3.1. Прямая презентация `TForm3D`
 пока не реализована. Отдельный Vulkan-контекст описан ниже. Рабочие потоки нужно завершить до выхода приложения.
 
-**3D / Vulkan:** добавлен независимый `FMXWayland.Vulkan.TVulkanContext` для
+**3D / Vulkan:** добавлен независимый `FireLinux.Vulkan.TVulkanContext` для
 `TViewport3D`: системный `libvulkan.so.1`, offscreen-изображения и вывод BGRA через
 Cairo. Демо: `Hello --tab=3d --3d=vulkan`; `--3d=opengl` выбирает прежний бэкенд
-(он остаётся по умолчанию). Также доступна переменная `FMXWAYLAND_3D_BACKEND=vulkan`.
+(он остаётся по умолчанию). Также доступна переменная `FIRELINUX_3D_BACKEND=vulkan`.
 В своём приложении вызовите `RegisterVulkanContext` после `Application.Initialize`,
 до создания форм, материалов, текстур и контекстов. Смена бэкенда при существующих
 3D-ресурсах не поддерживается. Регистрация Vulkan не загружает OpenGL-контекст.
@@ -109,7 +104,7 @@ render-to-texture и частичный readback. Текстуры — BGRA с p
 Проверено в WSLg без DISPLAY на Mesa lavapipe (LLVM 12.0.0), с включённым Khronos
 validation layer и без ошибок. Аппаратные Vulkan GPU в этой среде пока не проверены.
 
-**Для FastCanvas (Vulkan):** платформенный сервис `IFMXWaylandNativeWindow`
+**Для FastCanvas (Vulkan):** платформенный сервис `IFireLinuxNativeWindow`
 (`{B04A2FBC-1322-42BC-98A6-D526A7854F2C}`) отдаёт `wl_display`, `wl_surface` окна, размер буфера и масштаб;
 `SetExternalPresentation` отключает наши wl_shm-кадры, когда окно презентует Vulkan. Контракт описан в README.md.
 
@@ -123,16 +118,16 @@ PAServer должен работать в той же пользовательс
 Бэкенд заменяется для всех обычных вызовов FMX, включая асинхронные:
 
 ```pascal
-uses FMXWayland.Dialogs, FMXWayland.DialogTypes;
+uses FireLinux.Dialogs, FireLinux.DialogTypes;
 
-SetWaylandDialogBackend(TMyDialogs.Create); // Своя реализация IFMXWaylandDialogBackend.
-SetWaylandDialogBackend(TFMXWaylandDialogBackend.Create); // Все диалоги только на FMX.
-SetWaylandDialogBackend(nil);               // Вернуть Portal с автоматическим переходом на FMX.
+SetFireLinuxDialogBackend(TMyDialogs.Create); // Своя реализация IFireLinuxDialogBackend.
+SetFireLinuxDialogBackend(TFireLinuxDialogBackend.Create); // Все диалоги только на FMX.
+SetFireLinuxDialogBackend(nil);               // Вернуть Portal с автоматическим переходом на FMX.
 ```
 
-`TFMXWaylandDialogBackend` теперь содержит готовые файловые диалоги, сообщения и ввод на FMX. Файловый браузер
+`TFireLinuxDialogBackend` теперь содержит готовые файловые диалоги, сообщения и ввод на FMX. Файловый браузер
 поддерживает навигацию, ручной ввод пути, фильтры, скрытые файлы, множественный выбор, выбор папки, создание папки
-и подтверждение перезаписи. Раскладка хранится в `src\FMXWayland.FileDialog.fmx`, использует `Align` и `TLayout`.
+и подтверждение перезаписи. Раскладка хранится в `src\Dialogs\FireLinux.FileDialog.fmx`, использует `Align` и `TLayout`.
 Можно наследоваться от этого класса и переопределить любой из трёх методов для собственных форм.
 Запрос файлов содержит режим, заголовок, начальные пути, фильтры, индекс, множественный выбор и подтверждение
 перезаписи; отмена возвращает `False`. Переключение выполнять в UI-потоке. Уже поставленный в очередь запрос
@@ -187,7 +182,7 @@ SetWaylandDialogBackend(nil);               // Вернуть Portal с авто
 радиогруппы, разделители, изображения, Enabled/Visible, динамические пункты и горячие клавиши. F10 открывает
 меню, Alt использует мнемоники с `&`; стрелки, Home/End, Enter/Space и Escape работают в подменю. Команды
 перенаправляются оригинальным пунктам, без двойного выполнения. Изменение дерева при открытом подменю
-откладывается до завершения его цикла. Структура строки задана в `FMXWayland.Menus.fmx` через `TFrame`,
+откладывается до завершения его цикла. Структура строки задана в `FireLinux.Menus.fmx` через `TFrame`,
 `TLayout` и `Align = MostTop`; строка занимает 32 единицы клиентской области.
 Сервис подключается при обычном `Application.Initialize` до создания форм; модуль включён в бэкенд автоматически.
 Вызовы старого FMUX для меню остаются заглушками и обходятся этим сервисом. Для глобального меню KDE нужна
@@ -206,15 +201,15 @@ SetWaylandDialogBackend(nil);               // Вернуть Portal с авто
 нет: в GNOME — `font-name` из `org.gnome.desktop.interface`, прочитанный через портал настроек
 (`org.freedesktop.portal.Settings`; семейство, как его разрешает fontconfig, размер из пунктов в пиксели FMX:
 11 pt = 14,7), иначе семейство `sans-serif` из fontconfig и размер 12 (как у FMX);
-`FMXWAYLAND_FONT="семейство[,размер]"` меняет его. Всплывающие окна, открытые до того, как окно-родитель показано,
+`FIRELINUX_FONT="семейство[,размер]"` меняет его. Всплывающие окна, открытые до того, как окно-родитель показано,
 ждут его (xdg-shell требует отображённого родителя).
 
-**FastCanvas (Vulkan):** [FastCanvas](https://github.com/Fasday/FMXFastCanvas) работает на FMXWayland нативно:
+**FastCanvas (Vulkan):** [FastCanvas](https://github.com/Fasday/FMXFastCanvas) работает на FireLinux нативно:
 окна верхнего уровня (формы, модальные формы, диалоги, `TForm3D`) презентуются в свои `wl_surface` через
 `VK_KHR_wayland_surface` из потока FastCanvas (режим `MAILBOX`, иначе `IMMEDIATE`, не `FIFO`), всплывающие окна и
-прозрачные формы FastCanvas рисует на GPU, считывает и отдаёт в кадр FMXWayland через `FmuxCanvasDrawBitmap`. Без
+прозрачные формы FastCanvas рисует на GPU, считывает и отдаёт в кадр FireLinux через `FmuxCanvasDrawBitmap`. Без
 GTK, X11, Skia и libfmux; проекты не зависят друг от друга при компиляции. Платформенный сервис
-`IFMXWaylandNativeWindow` (`{B04A2FBC-1322-42BC-98A6-D526A7854F2C}`) отдаёт `wl_display`, `wl_surface` окна, размер
+`IFireLinuxNativeWindow` (`{B04A2FBC-1322-42BC-98A6-D526A7854F2C}`) отдаёт `wl_display`, `wl_surface` окна, размер
 буфера и масштаб; `SetExternalPresentation` отключает наши wl_shm-кадры. Под внешней презентацией у окна есть
 `wp_viewport` (буфер любого размера валиден), состояние окна для нового размера (viewport, геометрия, декорации)
 отправляется рядом с подтверждением configure и перед каждой отрисовкой, окно считается отображённым после первой
@@ -222,4 +217,4 @@ GTK, X11, Skia и libfmux; проекты не зависят друг от др
 `.\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define FASTCANVAS -SearchPath
 <FastCanvas>\src\Canvas,<FastCanvas>\third_party\pasvulkan\src`.
 Проверки: `tests\weston-headless.ps1 -Canvas TFastCanvas`, `tests\compositors.ps1 -Canvas TFastCanvas`. Подробности,
-контракт и результаты — в README.md (разделы «FastCanvas (Vulkan)» и «IFMXWaylandNativeWindow»).
+контракт и результаты — в README.md (разделы «FastCanvas (Vulkan)» и «IFireLinuxNativeWindow»).

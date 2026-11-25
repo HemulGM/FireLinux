@@ -1,8 +1,8 @@
 ﻿unit DialogCheckMain;
 
-{ The form of tests\DialogCheck: checks of FMXWayland's D-Bus client against a real bus (addresses, the
+{ The form of tests\DialogCheck: checks of FireLinux's D-Bus client against a real bus (addresses, the
   authentication, method calls, error replies, timeouts, a dictionary of variants, signals, cancellation by the pump)
-  and of the dialog backend (a test backend installed with SetWaylandDialogBackend: what TOpenDialog, TSaveDialog,
+  and of the dialog backend (a test backend installed with SetFireLinuxDialogBackend: what TOpenDialog, TSaveDialog,
   SelectDirectory, TDialogService and the FMUX functions hand it, and what comes back) and of the default font
   (Pango font descriptions, GNOME's font-name through a settings portal). One step per timer tick; each writes
   "dialogcheck: ..." to stdout; tests\dialog-check.ps1 checks them. }
@@ -33,16 +33,16 @@ implementation
 
 uses
   System.Generics.Collections, Posix.Unistd, Posix.Stdlib, FMX.Graphics, FMX.Dialogs, FMX.DialogService.Sync,
-  FMX.DialogService.Async, FMX.Platform, FMUX.Api, FMXWayland.Posix, FMXWayland.DBus, FMXWayland.Portal,
-  FMXWayland.DialogTypes, FMXWayland.Dialogs, FMXWayland.SystemFont;
+  FMX.DialogService.Async, FMX.Platform, FMUX.Api, FireLinux.Posix, FireLinux.DBus, FireLinux.Portal,
+  FireLinux.DialogTypes, FireLinux.Dialogs, FireLinux.SystemFont;
 
 type
   /// <summary>Answers without showing anything and logs what it was asked.</summary>
-  TTestBackend = class(TFMXWaylandDialogBackend)
+  TTestBackend = class(TFireLinuxDialogBackend)
   public
     Form: TDialogCheckForm;
     ManyNames: Boolean;
-    function FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+    function FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
       var FilterIndex: Integer): Boolean; override;
     function MessageDialog(const Message: string; DialogType: TMsgDlgType; Buttons: TMsgDlgButtons;
       DefaultButton: TMsgDlgBtn): TModalResult; override;
@@ -53,11 +53,11 @@ type
 var
   GTestBackend: TTestBackend;
 
-function TTestBackend.FileDialog(const Request: TWaylandFileDialogRequest; out Files: TArray<string>;
+function TTestBackend.FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>;
   var FilterIndex: Integer): Boolean;
 var
   S: string;
-  F: TWaylandFileFilter;
+  F: TFireLinuxFileFilter;
   I: Integer;
 begin
   S := '';
@@ -73,7 +73,7 @@ begin
     for I := 0 to High(Files) do
       Files[I] := Format('/tmp/%.2d', [I]) + StringOfChar('x', 43);
   end
-  else if Request.Kind = TWaylandFileDialogKind.SelectFolder then
+  else if Request.Kind = TFireLinuxFileDialogKind.SelectFolder then
     Files := ['/tmp/chosen folder']
   else if Request.Multiple then
     Files := ['/tmp/first file.txt', '/tmp/second.txt']
@@ -348,15 +348,15 @@ begin
     ReadFontName('without a portal', 'font-name');
     Service('GNOME without a portal', 'GNOME');
     // A portal with ReadOne: GNOME's font (the family fontconfig gives for it, points to pixels); only in GNOME and
-    // not with FMXWAYLAND_PORTAL=0.
+    // not with FIRELINUX_PORTAL=0.
     PutEnv('DBUS_SESSION_BUS_ADDRESS', GetEnvironmentVariable('DC_PORTAL_BUS'));
     ReadFontName('ReadOne', 'font-name');
     ReadFontName('missing key', 'no-such-key');
     Service('GNOME', 'ubuntu:GNOME');
     Service('KDE', 'KDE');
-    PutEnv('FMXWAYLAND_PORTAL', '0');
-    Service('GNOME with FMXWAYLAND_PORTAL=0', 'GNOME');
-    PutEnv('FMXWAYLAND_PORTAL', '');
+    PutEnv('FIRELINUX_PORTAL', '0');
+    Service('GNOME with FIRELINUX_PORTAL=0', 'GNOME');
+    PutEnv('FIRELINUX_PORTAL', '');
     // An old portal with only Read (a variant in a variant).
     PutEnv('DBUS_SESSION_BUS_ADDRESS', GetEnvironmentVariable('DC_OLD_PORTAL_BUS'));
     ReadFontName('Read', 'font-name');
@@ -377,12 +377,12 @@ var
   AsyncResult: TModalResult;
   Svc: IInterface;
   Buffer: array[0..63] of Char;
-  Backend: IFMXWaylandDialogBackend;
+  Backend: IFireLinuxDialogBackend;
 begin
   GTestBackend := TTestBackend.Create;
   GTestBackend.Form := Self;
   Backend := GTestBackend;
-  SetWaylandDialogBackend(Backend);
+  SetFireLinuxDialogBackend(Backend);
   TPlatformServices.Current.SupportsPlatformService(IFMXDialogServiceSync, Svc);
   Log('service with the backend: ' + (Svc as TObject).ClassName);
   Open := TOpenDialog.Create(nil);
@@ -441,7 +441,7 @@ begin
   Log(Format('FmuxInputQuery %s: %s', [BoolToStr(FmuxInputQuery(PChar('Caption'), PChar('Prompt'), @Buffer[0],
     Length(Buffer)), True), string(PChar(@Buffer[0]))]));
   // The default again: FMX's own dialog services.
-  SetWaylandDialogBackend(nil);
+  SetFireLinuxDialogBackend(nil);
   TPlatformServices.Current.SupportsPlatformService(IFMXDialogServiceSync, Svc);
   Log('service without it: ' + (Svc as TObject).ClassName);
 end;

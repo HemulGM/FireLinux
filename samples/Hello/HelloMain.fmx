@@ -1,7 +1,7 @@
-object HelloForm: THelloForm
+﻿object HelloForm: THelloForm
   Left = 0
   Top = 0
-  Caption = 'FMXWayland Hello'
+  Caption = 'FireLinux Hello'
   ClientHeight = 745
   ClientWidth = 984
   StyleBook = StyleBookWinUI3
@@ -38649,8 +38649,8 @@ object HelloForm: THelloForm
             Size.Width = 944.000000000000000000
             Size.Height = 120.000000000000000000
             Size.PlatformDefault = False
-            Viewport.Width = 944.000000000000000000
-            Viewport.Height = 120.000000000000000000
+            Viewport.Width = 926.000000000000000000
+            Viewport.Height = 108.000000000000000000
           end
         end
       end
@@ -39689,7 +39689,7 @@ object HelloForm: THelloForm
               Max = 1.000000000000000000
               Orientation = Horizontal
               Size.Width = 597.000000000000000000
-              Size.Height = 32.000000000000000000
+              Size.Height = 36.000000000000000000
               Size.PlatformDefault = False
               Value = 1.000000000000000000
               OnChange = ImageOpacityChange
@@ -39994,7 +39994,7 @@ object HelloForm: THelloForm
             Size.Width = 944.000000000000000000
             Size.Height = 28.000000000000000000
             Size.PlatformDefault = False
-            Text = 'IFMXWaylandNativeWindow'
+            Text = 'IFireLinuxNativeWindow'
           end
           object NativeInfo: TMemo
             Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]

@@ -1,0 +1,376 @@
+﻿{ FireLinux: replaceable dialog services.
+  Written by Hemul GM. Copyright (c) 2026 Fasday and contributors. MIT license, see LICENSE. }
+
+/// <summary>Dialog services of FireLinux behind a replaceable backend (IFireLinuxDialogBackend): file dialogs
+/// through the xdg-desktop-portal FileChooser with an automatic fallback to FMX's own file dialog form; message
+/// dialogs and input queries with FMX's dialog forms.</summary>
+/// <remarks>
+/// <para>FireLinux.Wayland.Fmux routes FMX's file dialogs (TOpenDialog, TSaveDialog, SelectDirectory: FmuxFilesDialog) and
+/// FMX's synchronous message dialogs (FmuxMessageDialog) to GetFireLinuxDialogBackend, and installs the hooks of the
+/// platform (ConfigureDialogHooks): its event loop keeps running while a portal dialog is open, and the
+/// program's windows are blocked as under a modal form.</para>
+/// <para>The default backend tries the portal and falls back to FMX's file dialog when there is none (no session
+/// bus, no xdg-desktop-portal, no FileChooser, folder selection before FileChooser version 3, or the environment
+/// variable FIRELINUX_PORTAL=0).</para>
+/// <para>SetFireLinuxDialogBackend installs another backend; it then also serves FMX's dialog services (TDialogService:
+/// message dialogs and input queries, synchronous and asynchronous; the asynchronous ones are queued and shown
+/// modally, since a backend is synchronous). Main thread only.</para>
+/// </remarks>
+unit FireLinux.Dialogs;
+
+interface
+
+uses
+  System.SysUtils, System.UITypes, FMX.Dialogs, FireLinux.DialogTypes,
+  FireLinux.DBus;
+
+type
+  /// <summary>A complete FMX backend: FMX's file dialog form (FireLinux.FileDialog), FMX's message dialog and input
+  /// query forms. Override individual methods to use your own forms.</summary>
+  TFireLinuxDialogBackend = class(TInterfacedObject, IFireLinuxDialogBackend)
+  public
+    function FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>; var FilterIndex: Integer): Boolean; virtual;
+    function MessageDialog(const Message: string; DialogType: TMsgDlgType; Buttons: TMsgDlgButtons; DefaultButton: TMsgDlgBtn): TModalResult; virtual;
+    function InputQuery(const Caption: string; const Prompts: TArray<string>; var Values: TArray<string>): Boolean; virtual;
+  end;
+
+/// <summary>Replaces the dialog backend; it also takes FMX's dialog services over (TDialogService...). nil restores
+/// the default: the portal with automatic FMX fallback, and FMX's own dialog services. Main thread only.</summary>
+procedure SetFireLinuxDialogBackend(const Backend: IFireLinuxDialogBackend);
+/// <summary>The dialog backend (the default one unless SetFireLinuxDialogBackend installed another).</summary>
+
+function GetFireLinuxDialogBackend: IFireLinuxDialogBackend;
+/// <summary>Called by the platform (FireLinux.Wayland.Fmux): Pump keeps the application's events going while a portal
+/// request waits; BeginModal blocks the program's windows as a modal form would and returns the portal's name of
+/// the window the dialog belongs to ('wayland:&lt;handle&gt;' or ''); EndModal undoes it. FMX backends use
+/// ShowModal themselves and need none of them.</summary>
+
+procedure ConfigureDialogHooks(const Pump: TDBusPump; const BeginModal: TFunc<string>; const EndModal: TProc);
+
+implementation
+
+uses
+  System.Classes, FMX.Platform, FMX.Dialogs.Linux, FMX.DialogHelper,
+  FMX.Dialogs.Default, FireLinux.Portal, FireLinux.FileDialog, FireLinux.Log;
+
+type
+  /// <summary>File dialogs through the portal, FMX's file dialog when there is none.</summary>
+  TPortalDialogBackend = class(TFireLinuxDialogBackend)
+  public
+    function FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>; var FilterIndex: Integer): Boolean; override;
+  end;
+
+  /// <summary>FMX's dialog services (TDialogService...) through an installed backend; the asynchronous ones are
+  /// queued and shown modally (a backend is synchronous).</summary>
+  TWaylandDialogService = class(TInterfacedObject, IFMXDialogServiceSync, IFMXDialogServiceAsync)
+  private
+    class procedure QueueMessage(const AMessage: string; ADialogType: TMsgDlgType; AButtons: TMsgDlgButtons; ADefaultButton: TMsgDlgBtn; const ADone: TInputCloseDialogProc); static;
+    class procedure QueueQuery(const ACaption: string; const APrompts, AValues: TArray<string>; const ADone: TInputCloseQueryProc); static;
+  public
+    procedure ShowMessageSync(const AMessage: string);
+    function MessageDialogSync(const AMessage: string; const ADialogType: TMsgDlgType; const AButtons: TMsgDlgButtons; const ADefaultButton: TMsgDlgBtn; const AHelpCtx: THelpContext): Integer;
+    function InputQuerySync(const ACaption: string; const APrompts: array of string; var AValues: array of string): Boolean;
+    procedure ShowMessageAsync(const AMessage: string); overload;
+    procedure ShowMessageAsync(const AMessage: string; const ACloseDialogProc: TInputCloseDialogProc); overload;
+    procedure ShowMessageAsync(const AMessage: string; const ACloseDialogEvent: TInputCloseDialogEvent; const AContext: TObject = nil); overload;
+    procedure MessageDialogAsync(const AMessage: string; const ADialogType: TMsgDlgType; const AButtons: TMsgDlgButtons; const ADefaultButton: TMsgDlgBtn; const AHelpCtx: THelpContext; const ACloseDialogProc: TInputCloseDialogProc); overload;
+    procedure MessageDialogAsync(const AMessage: string; const ADialogType: TMsgDlgType; const AButtons: TMsgDlgButtons; const ADefaultButton: TMsgDlgBtn; const AHelpCtx: THelpContext; const ACloseDialogEvent: TInputCloseDialogEvent; const AContext: TObject = nil); overload;
+    procedure InputQueryAsync(const ACaption: string; const APrompts: array of string; const ADefaultValues: array of string; const ACloseDialogProc: TInputCloseQueryProc); overload;
+    procedure InputQueryAsync(const ACaption: string; const APrompts: array of string; const ADefaultValues: array of string; const ACloseQueryEvent: TInputCloseQueryWithResultEvent; const AContext: TObject = nil); overload;
+  end;
+
+var
+  GBackend: IFireLinuxDialogBackend;
+  GPump: TDBusPump;
+  GBeginModal: TFunc<string>;
+  GEndModal: TProc;
+  GService: IInterface;
+  // FMX's own dialog services (FMX.Dialogs.Linux) while an installed backend replaces them.
+  GInstalled: Boolean;
+  GFMXSync: IInterface;
+  GFMXAsync: IInterface;
+
+function CopyStrings(const Values: array of string): TArray<string>;
+var
+  I: Integer;
+begin
+  SetLength(Result, Length(Values));
+  for I := 0 to High(Values) do
+    Result[I] := Values[I];
+end;
+
+procedure ReplaceService(const AGuid: TGUID; const AService: IInterface);
+begin
+  TPlatformServices.Current.RemovePlatformService(AGuid);
+  if AService <> nil then
+    TPlatformServices.Current.AddPlatformService(AGuid, AService);
+end;
+
+procedure InstallService;
+begin
+  if GInstalled then
+    Exit;
+  if GService = nil then
+    GService := TWaylandDialogService.Create;
+  if not TPlatformServices.Current.SupportsPlatformService(IFMXDialogServiceSync, GFMXSync) then
+    GFMXSync := nil;
+  if not TPlatformServices.Current.SupportsPlatformService(IFMXDialogServiceAsync, GFMXAsync) then
+    GFMXAsync := nil;
+  ReplaceService(IFMXDialogServiceSync, GService);
+  ReplaceService(IFMXDialogServiceAsync, GService);
+  GInstalled := True;
+end;
+
+procedure RestoreService;
+begin
+  if not GInstalled then
+    Exit;
+  ReplaceService(IFMXDialogServiceSync, GFMXSync);
+  ReplaceService(IFMXDialogServiceAsync, GFMXAsync);
+  GFMXSync := nil;
+  GFMXAsync := nil;
+  GInstalled := False;
+end;
+
+procedure SetFireLinuxDialogBackend(const Backend: IFireLinuxDialogBackend);
+begin
+  MessageDialogCheckInUIThread;
+  GBackend := Backend;
+  if Backend <> nil then
+    InstallService
+  else
+    RestoreService;
+end;
+
+function GetFireLinuxDialogBackend: IFireLinuxDialogBackend;
+begin
+  if GBackend = nil then
+    GBackend := TPortalDialogBackend.Create;
+  Result := GBackend;
+end;
+
+procedure ConfigureDialogHooks(const Pump: TDBusPump; const BeginModal: TFunc<string>; const EndModal: TProc);
+begin
+  GPump := Pump;
+  GBeginModal := BeginModal;
+  GEndModal := EndModal;
+end;
+
+{$REGION 'TFireLinuxDialogBackend'}
+
+function TFireLinuxDialogBackend.MessageDialog(const Message: string; DialogType: TMsgDlgType; Buttons: TMsgDlgButtons; DefaultButton: TMsgDlgBtn): TModalResult;
+var
+  R: TModalResult;
+begin
+  MessageDialogCheckInUIThread;
+  R := mrNone;
+  TDialogHelper.MessageDialog(Message, DialogType, Buttons, DefaultButton, 0,
+    procedure(const AResult: TModalResult)
+    begin
+      R := AResult;
+    end, True);
+  Result := R;
+end;
+
+function TFireLinuxDialogBackend.InputQuery(const Caption: string; const Prompts: TArray<string>; var Values: TArray<string>): Boolean;
+begin
+  MessageDialogCheckInUIThread;
+  Result := DefaultInputQuery(Caption, Prompts, Values, nil);
+end;
+
+function TFireLinuxDialogBackend.FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>; var FilterIndex: Integer): Boolean;
+begin
+  Result := ExecuteFMXFileDialog(Request, Files, FilterIndex);
+end;
+
+{$ENDREGION}
+
+{$REGION 'TPortalDialogBackend'}
+
+function TPortalDialogBackend.FileDialog(const Request: TFireLinuxFileDialogRequest; out Files: TArray<string>; var FilterIndex: Integer): Boolean;
+var
+  Fallback: Boolean;
+  Parent: string;
+begin
+  MessageDialogCheckInUIThread;
+  Files := nil;
+  if GetEnvironmentVariable('FIRELINUX_PORTAL') = '0' then
+    Exit(inherited FileDialog(Request, Files, FilterIndex));
+  Fallback := False;
+  Result := False;
+  Parent := '';
+  if Assigned(GBeginModal) then
+    Parent := GBeginModal();
+  try
+    try
+      Result := PortalFileDialog(Request, Parent, Files, FilterIndex, GPump);
+    except
+      on E: EDBusCancelled do
+      begin
+        WlLog(TWlLogLevel.Debug, 'portal: file dialog cancelled (%s)', [E.Message]);
+        Result := False;
+      end;
+      on E: EPortalUnavailable do
+      begin
+        WlLog(TWlLogLevel.Debug, 'portal: no file dialog (%s); FMX''s file dialog instead', [E.Message]);
+        Fallback := True;
+      end;
+      on E: EDBusError do
+      begin
+        WlLog(TWlLogLevel.Warning, 'portal: file dialog failed: %s', [E.Message]);
+        Result := False;
+      end;
+    end;
+  finally
+    if Assigned(GEndModal) then
+      GEndModal();
+  end;
+  // External modality ends before FMX's form opens: its input would be blocked too.
+  if Fallback then
+    Result := inherited FileDialog(Request, Files, FilterIndex);
+  if not Result then
+    Files := nil;
+end;
+
+{$ENDREGION}
+
+{$REGION 'TWaylandDialogService'}
+
+class procedure TWaylandDialogService.QueueMessage(const AMessage: string; ADialogType: TMsgDlgType; AButtons: TMsgDlgButtons; ADefaultButton: TMsgDlgBtn; const ADone: TInputCloseDialogProc);
+var
+  Backend: IFireLinuxDialogBackend;
+begin
+  MessageDialogCheckInUIThread;
+  // The backend of now: a later SetFireLinuxDialogBackend does not change an already queued dialog.
+  Backend := GetFireLinuxDialogBackend;
+  TThread.ForceQueue(nil,
+    procedure
+    var
+      Answer: TModalResult;
+    begin
+      Answer := Backend.MessageDialog(AMessage, ADialogType, AButtons, ADefaultButton);
+      if Assigned(ADone) then
+        ADone(Answer);
+    end);
+end;
+
+class procedure TWaylandDialogService.QueueQuery(const ACaption: string; const APrompts, AValues: TArray<string>; const ADone: TInputCloseQueryProc);
+var
+  Backend: IFireLinuxDialogBackend;
+begin
+  MessageDialogCheckInUIThread;
+  Backend := GetFireLinuxDialogBackend;
+  TThread.ForceQueue(nil,
+    procedure
+    var
+      Edited: TArray<string>;
+      Answer: TModalResult;
+    begin
+      Edited := Copy(AValues);
+      Answer := mrCancel;
+      if Backend.InputQuery(ACaption, APrompts, Edited) then
+      begin
+        if Length(Edited) <> Length(AValues) then
+          raise EArgumentException.Create('Dialog backend changed the value count');
+        Answer := mrOK;
+      end
+      else
+        Edited := Copy(AValues);
+      if Assigned(ADone) then
+        ADone(Answer, Edited);
+    end);
+end;
+
+procedure TWaylandDialogService.ShowMessageSync(const AMessage: string);
+begin
+  MessageDialogCheckInUIThread;
+  GetFireLinuxDialogBackend.MessageDialog(AMessage, TMsgDlgType.mtCustom, [TMsgDlgBtn.mbOK], TMsgDlgBtn.mbOK);
+end;
+
+function TWaylandDialogService.MessageDialogSync(const AMessage: string; const ADialogType: TMsgDlgType; const AButtons: TMsgDlgButtons; const ADefaultButton: TMsgDlgBtn; const AHelpCtx: THelpContext): Integer;
+begin
+  MessageDialogCheckInUIThread;
+  Result := GetFireLinuxDialogBackend.MessageDialog(AMessage, ADialogType, AButtons, ADefaultButton);
+end;
+
+function TWaylandDialogService.InputQuerySync(const ACaption: string; const APrompts: array of string; var AValues: array of string): Boolean;
+var
+  Values: TArray<string>;
+  I: Integer;
+begin
+  MessageDialogCheckInUIThread;
+  Values := CopyStrings(AValues);
+  Result := GetFireLinuxDialogBackend.InputQuery(ACaption, CopyStrings(APrompts), Values);
+  if not Result then
+    Exit;
+  if Length(Values) <> Length(AValues) then
+    raise EArgumentException.Create('Dialog backend changed the value count');
+  for I := 0 to High(Values) do
+    AValues[I] := Values[I];
+end;
+
+procedure TWaylandDialogService.ShowMessageAsync(const AMessage: string);
+begin
+  QueueMessage(AMessage, TMsgDlgType.mtCustom, [TMsgDlgBtn.mbOK], TMsgDlgBtn.mbOK, nil);
+end;
+
+procedure TWaylandDialogService.ShowMessageAsync(const AMessage: string; const ACloseDialogProc: TInputCloseDialogProc);
+begin
+  QueueMessage(AMessage, TMsgDlgType.mtCustom, [TMsgDlgBtn.mbOK], TMsgDlgBtn.mbOK, ACloseDialogProc);
+end;
+
+procedure TWaylandDialogService.ShowMessageAsync(const AMessage: string; const ACloseDialogEvent: TInputCloseDialogEvent; const AContext: TObject);
+begin
+  QueueMessage(AMessage, TMsgDlgType.mtCustom, [TMsgDlgBtn.mbOK], TMsgDlgBtn.mbOK,
+    procedure(const Answer: TModalResult)
+    begin
+      if Assigned(ACloseDialogEvent) then
+        ACloseDialogEvent(AContext, Answer);
+    end);
+end;
+
+procedure TWaylandDialogService.MessageDialogAsync(const AMessage: string; const ADialogType: TMsgDlgType; const AButtons: TMsgDlgButtons; const ADefaultButton: TMsgDlgBtn; const AHelpCtx: THelpContext; const ACloseDialogProc: TInputCloseDialogProc);
+begin
+  QueueMessage(AMessage, ADialogType, AButtons, ADefaultButton, ACloseDialogProc);
+end;
+
+procedure TWaylandDialogService.MessageDialogAsync(const AMessage: string; const ADialogType: TMsgDlgType; const AButtons: TMsgDlgButtons; const ADefaultButton: TMsgDlgBtn; const AHelpCtx: THelpContext; const ACloseDialogEvent: TInputCloseDialogEvent; const AContext: TObject);
+begin
+  QueueMessage(AMessage, ADialogType, AButtons, ADefaultButton,
+    procedure(const Answer: TModalResult)
+    begin
+      if Assigned(ACloseDialogEvent) then
+        ACloseDialogEvent(AContext, Answer);
+    end);
+end;
+
+procedure TWaylandDialogService.InputQueryAsync(const ACaption: string; const APrompts: array of string; const ADefaultValues: array of string; const ACloseDialogProc: TInputCloseQueryProc);
+begin
+  QueueQuery(ACaption, CopyStrings(APrompts), CopyStrings(ADefaultValues), ACloseDialogProc);
+end;
+
+procedure TWaylandDialogService.InputQueryAsync(const ACaption: string; const APrompts: array of string; const ADefaultValues: array of string; const ACloseQueryEvent: TInputCloseQueryWithResultEvent; const AContext: TObject);
+begin
+  QueueQuery(ACaption, CopyStrings(APrompts), CopyStrings(ADefaultValues),
+    procedure(const Answer: TModalResult; const Values: array of string)
+    begin
+      if Assigned(ACloseQueryEvent) then
+        ACloseQueryEvent(AContext, Answer, Values);
+    end);
+end;
+
+{$ENDREGION}
+
+initialization
+
+finalization
+  GBackend := nil;
+  GService := nil;
+  GFMXSync := nil;
+  GFMXAsync := nil;
+  GPump := nil;
+  GBeginModal := nil;
+  GEndModal := nil;
+
+end.
+

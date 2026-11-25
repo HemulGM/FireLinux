@@ -4,7 +4,7 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Types, System.UITypes, System.Classes,
   FMX.Forms, FMX.Types, FMX.Graphics, FMX.TextLayout,
-  FMUX.Api, FMXWayland.Cairo;
+  FMUX.Api, FireLinux.Cairo;
 
 procedure Check(Value: Boolean; const Name: string);
 begin

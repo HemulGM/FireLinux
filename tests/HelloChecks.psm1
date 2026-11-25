@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Checks of the log of samples\Hello --selftest (FMXWAYLAND_LOG=2), shared by tests\weston-headless.ps1,
+  Checks of the log of samples\Hello --selftest (FIRELINUX_LOG=2), shared by tests\weston-headless.ps1,
   tests\glibc-compat.ps1 and tests\compositors.ps1.
 #>
 
@@ -51,10 +51,10 @@ function Get-HelloSelfTestChecks([string] $Log, [string] $Prefix, [double] $Scal
   }
 }
 
-# The program's own frame dump (FMXWAYLAND_DUMP_DIR, a top-down BMP of the main window) as frame.png; its size.
+# The program's own frame dump (FIRELINUX_DUMP_DIR, a top-down BMP of the main window) as frame.png; its size.
 function Convert-HelloFrameDump([string] $Dir) {
   Add-Type -AssemblyName System.Drawing
-  $dump = Get-ChildItem $Dir -Filter 'FMXWaylandHello-*.bmp' -ErrorAction SilentlyContinue | Select-Object -First 1
+  $dump = Get-ChildItem $Dir -Filter 'FireLinuxHello-*.bmp' -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $dump) { return $null }
   $img = [System.Drawing.Image]::FromFile($dump.FullName)
   try {
@@ -136,11 +136,11 @@ function Get-ColorCount([string] $Path, [int] $Rgb, [int] $Tolerance = 8) {
   [FmxwPixels]::Count($Path, $Rgb, $Tolerance)
 }
 
-# Checks of the log of Hello --own-titlebar --selftest (IFMXWaylandWindowFrame without input) whose form the program
+# Checks of the log of Hello --own-titlebar --selftest (IFireLinuxWindowFrame without input) whose form the program
 # sized $Width x $Height before the frame was attached and before the first show: it must open at that size (FMX's
 # form and the client area, the buffer at the scale). $Comp: the compositor (KWin and sway decorate themselves and keep
 # the outer size when the decorations come or go: the client size after that is theirs; Weston and GNOME Shell get
-# FMXWayland's title bar back, 4 + 4 and 30 + 4 pixels).
+# FireLinux's title bar back, 4 + 4 and 30 + 4 pixels).
 function Get-HelloOwnTitleBarChecks([string] $Log, [string] $Prefix, [int] $Width, [int] $Height, [double] $Scale = 1,
   [string] $Comp = 'weston') {
   $ssd = $Comp -in 'sway', 'sway-csd', 'kwin', 'kwin-virtual'
@@ -176,12 +176,12 @@ function Get-HelloOwnTitleBarChecks([string] $Log, [string] $Prefix, [int] $Widt
       ($Log -match "selftest: size from code: form $bigger, client $bigger") -and
       ($Log -match "selftest: size from code again: form $size, client $size")
     "$($Prefix): self-test done, clean exit" = ($Log -match 'selftest: done') -and ($Log -match 'exit=0')
-    "$($Prefix): no protocol errors" = $Log -notmatch 'protocol error|FMXWayland: error'
+    "$($Prefix): no protocol errors" = $Log -notmatch 'protocol error|FireLinux: error'
   }
 }
 
 # Checks of a screenshot of Hello --own-titlebar: its caption (active or inactive blue) is there, and no title bar of
-# FMXWayland's (its light gray, active or inactive) right above it. Returns @(passed, detail).
+# FireLinux's (its light gray, active or inactive) right above it. Returns @(passed, detail).
 function Test-HelloOwnTitleBarShot([string] $Path) {
   if (-not (Test-Path $Path)) { return @($false, 'no screenshot') }
   # The caption: rows of at least 300 pixels of its color (active or inactive).
@@ -222,7 +222,7 @@ function Get-HelloEarlyPopupChecks([string] $Log, [string] $Shot, [string] $Pref
   }
 }
 
-# Checks of the default font in Hello's log (FMXWayland's IFMXSystemFontService): the family and size FMX's TFont
+# Checks of the default font in Hello's log (FireLinux's IFMXSystemFontService): the family and size FMX's TFont
 # takes, what a styled label resolves, and that the canvas measures text in it (not in the fallback of a missing
 # family: Tahoma is missing on Linux, Skia falls back to Ubuntu, Pango to fontconfig's default).
 function Get-HelloFontChecks([string] $Log, [string] $Prefix, [string] $Family, [string] $Size = '12.0',

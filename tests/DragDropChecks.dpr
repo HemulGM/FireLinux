@@ -3,7 +3,7 @@
 uses
   System.StartUpCopy, System.SysUtils, System.Types, System.Classes, System.UITypes,
   System.Diagnostics, FMX.Forms, FMX.Types, FMX.Platform, FMX.Graphics, FMUX.Api,
-  FMXWayland.DragDrop,
+  FireLinux.Wayland.DragDrop,
   HelloMain in '..\samples\Hello\HelloMain.pas', HelloWindow in '..\samples\Hello\HelloWindow.pas';
 
 type

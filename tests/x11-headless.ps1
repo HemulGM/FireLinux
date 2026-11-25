@@ -8,7 +8,7 @@
 param(
   [ValidateSet('Xvfb', 'Xorg', 'Existing')] [string] $Server = 'Xvfb',
   [ValidateSet('Both', 'Cairo', 'Skia')] [string] $Canvas = 'Both',
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build\x11-release',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build\x11-release',
   [string] $Distro = 'Ubuntu-26.04',
   [string] $Display = '',
   [string] $XAuthority = '',

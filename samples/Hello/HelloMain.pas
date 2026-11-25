@@ -1,6 +1,6 @@
 ﻿unit HelloMain;
 
-{ FMXWayland demo. Static controls, animations, dialogs and timers are declared in HelloMain.fmx. }
+{ FireLinux demo. Static controls, animations, dialogs and timers are declared in HelloMain.fmx. }
 
 interface
 
@@ -11,7 +11,7 @@ uses
   FMX.Filter.Effects, FMX.Controls.Presentation, FMX.Dialogs, HelloWindow,
   FMX.Memo.Types, FMX.ScrollBox, FMX.Menus, FMX.ActnList, System.Actions,
   System.Math.Vectors, FMX.Controls3D, FMX.Objects3D, FMX.Viewport3D,
-  FMX.MaterialSources, FMX.Types3D, FMXWayland.Vulkan;
+  FMX.MaterialSources, FMX.Types3D, FireLinux.Vulkan;
 
 type
   THelloForm = class(TForm)
@@ -235,10 +235,10 @@ implementation
 
 uses
   System.UIConsts, System.DateUtils, System.IOUtils, FMX.Platform,
-  FMX.DialogService.Sync, FMXWayland.Dialogs;
+  FMX.DialogService.Sync, FireLinux.Dialogs;
 
 type
-  // Same contract a renderer such as FastCanvas can declare without depending on FMXWayland.
+  // Same contract a renderer such as FastCanvas can declare without depending on FireLinux.
   IWaylandNativeWindowContract = interface
     ['{B04A2FBC-1322-42BC-98A6-D526A7854F2C}']
     function GetWaylandDisplay: Pointer;
@@ -564,9 +564,9 @@ begin
   if (BackendCombo = nil) or (BackendCombo.ItemIndex < 0) then
     Exit;
   if BackendCombo.ItemIndex = 1 then
-    SetWaylandDialogBackend(TFMXWaylandDialogBackend.Create)
+    SetFireLinuxDialogBackend(TFireLinuxDialogBackend.Create)
   else
-    SetWaylandDialogBackend(nil);
+    SetFireLinuxDialogBackend(nil);
   if DialogResults <> nil then
     DialogResult('Бэкенд: ' + BackendCombo.Items[BackendCombo.ItemIndex]);
 end;

@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{5C377B3B-2205-4C20-A3F3-EAE4C276BC28}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
@@ -239,14 +239,9 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Linux64)'!=''">
         <DCC_Namespace>FMX;Posix;Linuxapi;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_Define>FMXWAYLAND_DPROJ;$(DCC_Define)</DCC_Define>
-        <FMXWaylandFmxLinuxArg Condition="'$(FMXWaylandFmxLinux)'!=''">-FmxLinux &quot;$(FMXWaylandFmxLinux)&quot;</FMXWaylandFmxLinuxArg>
-        <DCC_UnitSearchPath Condition="'$(FMXWaylandFmxLinux)'!=''">$(FMXWaylandFmxLinux)\lib\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_UnitSearchPath>..\..\gen\Linux64\$(Config);..\..\src;..\..\src\Protocols;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_IncludePath>..\..\src;$(DCC_IncludePath)</DCC_IncludePath>
-        <DCC_ResourcePath>.;$(DCC_ResourcePath)</DCC_ResourcePath>
-        <PreBuildEvent><![CDATA[powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildProjectDirectory)\..\..\tools\prepare-ide-build.ps1" -Bds "$(BDS)" -GenDir "$(MSBuildProjectDirectory)\..\..\gen\Linux64\$(Config)" -OutputDir "$(MSBuildProjectDirectory)\$(DCC_ExeOutput)" -Config "$(Config)" $(FMXWaylandFmxLinuxArg)]]></PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>false</PreBuildEventIgnoreExitCode>
+        <DCC_IncludePath>..\..\src;..\..\src\Rendering;$(DCC_IncludePath)</DCC_IncludePath>
+        <DCC_UnitSearchPath>..\..\src;..\..\src\Backends\Wayland;..\..\src\Backends\Wayland\Protocols;..\..\src\Backends\X11;..\..\src\Rendering;..\..\src\Dialogs;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_ResourcePath>..\..\src;.;$(DCC_ResourcePath)</DCC_ResourcePath>
         <Debugger_Launcher>/usr/bin/gnome-terminal -- &quot;%debuggee%&quot;</Debugger_Launcher>
         <Manifest_File>(None)</Manifest_File>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
@@ -326,66 +321,65 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="..\..\src\FMUX.Api.pas"/>
+        <DCCReference Include="HelloBackendProbe.pas">
+            <Form>HelloBackendProbeForm</Form>
+        </DCCReference>
+        <DCCReference Include="HelloTitleBar.pas"/>
         <DCCReference Include="HelloMain.pas">
             <Form>HelloForm</Form>
-            <FormType>fmx</FormType>
         </DCCReference>
         <DCCReference Include="HelloWindow.pas">
             <Form>DemoWindow</Form>
-            <FormType>fmx</FormType>
         </DCCReference>
-        <DCCReference Include="..\..\src\FMXWayland.Fmux.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Vulkan.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.VulkanApi.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.VulkanDevice.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.OpenGL.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Cairo.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.CairoApi.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.DBus.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.DialogTypes.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Dialogs.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.FileDialog.pas">
-            <Form>FMXWaylandFileDialog</Form>
-            <FormType>fmx</FormType>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.Fmux.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.Vulkan.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.VulkanApi.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.VulkanDevice.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.OpenGL.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.Cairo.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.CairoApi.pas"/>
+        <DCCReference Include="..\..\src\Dialogs\FireLinux.DBus.pas"/>
+        <DCCReference Include="..\..\src\Dialogs\FireLinux.DialogTypes.pas"/>
+        <DCCReference Include="..\..\src\Dialogs\FireLinux.Dialogs.pas"/>
+        <DCCReference Include="..\..\src\Dialogs\FireLinux.FileDialog.pas">
+            <Form>FireLinuxFileDialog</Form>
         </DCCReference>
-        <DCCReference Include="..\..\src\FMXWayland.Portal.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Keys.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Log.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Native.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Platform.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.DragDrop.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Menus.pas">
-            <Form>FMXWaylandMainMenuView</Form>
-            <FormType>fmx</FormType>
+        <DCCReference Include="..\..\src\Dialogs\FireLinux.Portal.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Keys.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Log.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.Native.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.Platform.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.DragDrop.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Menus.pas">
+            <Form>FireLinuxMainMenuView</Form>
             <DesignClass>TFrame</DesignClass>
         </DCCReference>
-        <DCCReference Include="..\..\src\FMXWayland.TextInput.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Posix.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Wayland.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.WaylandCursor.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Xkb.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.CursorShapeV1.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.FractionalScaleV1.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.TabletV2.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.TextInputUnstableV3.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.Viewporter.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.Wayland.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgActivationV1.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgDecorationUnstableV1.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgShell.pas"/>
-        <DCCReference Include="HelloTitleBar.pas"/>
-        <DCCReference Include="HelloBackendProbe.pas">
-            <Form>HelloBackendProbeForm</Form>
-            <FormType>fmx</FormType>
-        </DCCReference>
-        <DCCReference Include="..\..\src\FMXWayland.Backend.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.FmuxLoad.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Frame.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.SystemFont.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.X11.pas"/>
-        <DCCReference Include="..\..\src\FMXWayland.Xlib.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgForeignUnstableV2.pas"/>
-        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgToplevelIconV1.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.TextInput.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Posix.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.Client.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\FireLinux.Wayland.Cursor.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Xkb.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.CursorShapeV1.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.FractionalScaleV1.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.TabletV2.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.TextInputUnstableV3.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.Viewporter.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.Wayland.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgActivationV1.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgDecorationUnstableV1.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgToplevelIconV1.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgForeignUnstableV2.pas"/>
+        <DCCReference Include="..\..\src\Backends\Wayland\Protocols\FireLinux.Wayland.Protocol.XdgShell.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.FmuxLoad.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Frame.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.SystemFont.pas"/>
+        <DCCReference Include="..\..\src\Backends\X11\FireLinux.X11.Fmux.pas"/>
+        <DCCReference Include="..\..\src\Backends\X11\FireLinux.X11.Xlib.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Backend.Factory.pas"/>
+        <DCCReference Include="..\..\src\FireLinux.Fmux.pas"/>
+        <DCCReference Include="..\..\src\Rendering\FireLinux.RasterFrame.pas"/>
+        <None Include="..\..\src\Rendering\FireLinux.VulkanShaders.inc"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -435,6 +429,12 @@
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\..\src\Rendering\FireLinux.VulkanShaders.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Linux64">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

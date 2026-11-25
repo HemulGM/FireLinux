@@ -14,11 +14,11 @@ if [ "${X11_START_WM:-0}" = 1 ]; then
   sleep .3
 fi
 if [ "${X11_LEGACY_WM:-0}" = 1 ]; then xprop -root -remove _NET_SUPPORTED; fi
-timeout 30 env FMXWAYLAND_BACKEND=x11 FMXWAYLAND_LOG="${FMXWAYLAND_LOG:-2}" "$RUN/Hello" \
+timeout 30 env FIRELINUX_BACKEND=x11 FIRELINUX_LOG="${FIRELINUX_LOG:-2}" "$RUN/Hello" \
   --own-titlebar --verbose --quit-after=25 >"$OUT/program.log" 2>&1 &
 PID=$!
 trap 'kill "$PID" ${WM_PID:+"$WM_PID"} 2>/dev/null || true; rm -rf "$RUN"' EXIT
-WIN=$(timeout 8 xdotool search --sync --onlyvisible --name '^FMXWayland own title bar$' | head -1)
+WIN=$(timeout 8 xdotool search --sync --onlyvisible --name '^FireLinux own title bar$' | head -1)
 xdotool windowfocus --sync "$WIN"
 sleep .3
 geometry() { eval "$(xdotool getwindowgeometry --shell "$WIN")"; }

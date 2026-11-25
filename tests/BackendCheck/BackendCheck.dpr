@@ -12,8 +12,8 @@ uses
   System.IOUtils,
   Posix.Dlfcn,
   Posix.Unistd,
-  FMXWayland.Posix,
-  FMXWayland.Xlib;
+  FireLinux.Posix,
+  FireLinux.X11.Xlib;
 
 type
   TXCreateEvent = record
@@ -241,7 +241,7 @@ begin
   end
   else if ParamStr(1) = 'coordinates' then
   begin
-    if IsWayland() then raise Exception.Create('Coordinate probe requires FMXWAYLAND_BACKEND=x11');
+    if IsWayland() then raise Exception.Create('Coordinate probe requires FIRELINUX_BACKEND=x11');
     Info := Default(TFmuxCreateStruct);
     Info.X := 80;
     Info.Y := 90;

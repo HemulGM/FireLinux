@@ -1,8 +1,8 @@
 ﻿unit HelloTitleBar;
 
-{ Hello --own-titlebar: a form that draws its own title bar, as FMR Ribbon does, through FMXWayland's
-  IFMXWaylandWindowFrame service. The service is declared here again (same GUIDs, same methods) the way a library
-  that does not depend on FMXWayland declares it. The platform's decorations are off; the blue caption moves the
+{ Hello --own-titlebar: a form that draws its own title bar, as FMR Ribbon does, through FireLinux's
+  IFireLinuxWindowFrame service. The service is declared here again (same GUIDs, same methods) the way a library
+  that does not depend on FireLinux declares it. The platform's decorations are off; the blue caption moves the
   window (press and drag), maximizes or restores it (double click) and shows the compositor's window menu (right
   click); its buttons minimize, maximize/restore and close; thin grips at the edges resize the window. The states the
   compositor reports (activated, maximized, tiled, ...) show in a label and in the log. As a program would, it sets
@@ -18,7 +18,7 @@ uses
   FMX.Layouts, FMX.Controls.Presentation;
 
 const
-  { Edges of IFMXWaylandWindowFrame.BeginResize: the values of xdg_toplevel.resize_edge. }
+  { Edges of IFireLinuxWindowFrame.BeginResize: the values of xdg_toplevel.resize_edge. }
   FmxwEdgeNone = 0;
   FmxwEdgeTop = 1;
   FmxwEdgeBottom = 2;
@@ -29,7 +29,7 @@ const
   FmxwEdgeTopRight = 9;
   FmxwEdgeBottomRight = 10;
 
-  { Bits of IFMXWaylandWindowFrame.GetStates: 1 shl <xdg_toplevel.state> of the last configure. }
+  { Bits of IFireLinuxWindowFrame.GetStates: 1 shl <xdg_toplevel.state> of the last configure. }
   FmxwStateMaximized = 1 shl 1;
   FmxwStateFullscreen = 1 shl 2;
   FmxwStateResizing = 1 shl 3;
@@ -41,7 +41,7 @@ const
   FmxwStateSuspended = 1 shl 9;
   FmxwStateTiled = FmxwStateTiledLeft or FmxwStateTiledRight or FmxwStateTiledTop or FmxwStateTiledBottom;
 
-  { Bits of IFMXWaylandWindowFrame.GetCapabilities: 1 shl <xdg_toplevel.wm_capabilities>; FmxwCapsUnknown when the
+  { Bits of IFireLinuxWindowFrame.GetCapabilities: 1 shl <xdg_toplevel.wm_capabilities>; FmxwCapsUnknown when the
     compositor does not send them (xdg_wm_base before version 5: everything may work). }
   FmxwCapWindowMenu = 1 shl 1;
   FmxwCapMaximize = 1 shl 2;
@@ -50,14 +50,14 @@ const
   FmxwCapsUnknown = Cardinal($FFFFFFFF);
 
 type
-  /// <summary>The contract of FMXWayland.Frame.IFMXWaylandWindowFrameListener, declared again.</summary>
-  IFMXWaylandWindowFrameListener = interface
+  /// <summary>The contract of FireLinux.Frame.IFireLinuxWindowFrameListener, declared again.</summary>
+  IFireLinuxWindowFrameListener = interface
     ['{785C5760-E413-4153-82DF-E857D1AA70AC}']
     procedure WindowFrameChanged(const AHandle: TWindowHandle; const AStates, ACapabilities: Cardinal);
   end;
 
-  /// <summary>The contract of FMXWayland.Frame.IFMXWaylandWindowFrame, declared again.</summary>
-  IFMXWaylandWindowFrame = interface
+  /// <summary>The contract of FireLinux.Frame.IFireLinuxWindowFrame, declared again.</summary>
+  IFireLinuxWindowFrame = interface
     ['{547B5786-5639-43A4-A598-1A03B465783A}']
     procedure SetDecorated(const AHandle: TWindowHandle; const AValue: Boolean);
     function GetDecorated(const AHandle: TWindowHandle): Boolean;
@@ -68,14 +68,14 @@ type
     procedure SetMaximized(const AHandle: TWindowHandle; const AValue: Boolean);
     function GetStates(const AHandle: TWindowHandle): Cardinal;
     function GetCapabilities(const AHandle: TWindowHandle): Cardinal;
-    procedure SetFrameListener(const AHandle: TWindowHandle; const AListener: IFMXWaylandWindowFrameListener);
+    procedure SetFrameListener(const AHandle: TWindowHandle; const AListener: IFireLinuxWindowFrameListener);
   end;
 
   /// <summary>The form of --own-titlebar (made in code).</summary>
   TTitleBarForm = class(TForm)
   private
-    FFrame: IFMXWaylandWindowFrame;
-    FListener: IFMXWaylandWindowFrameListener;
+    FFrame: IFireLinuxWindowFrame;
+    FListener: IFireLinuxWindowFrameListener;
     FStates: Cardinal;
     FCaps: Cardinal;
     FCaption: TRectangle;
@@ -148,7 +148,7 @@ const
   CDefaultHeight = 460;
 
 type
-  /// The contract of FMXWayland.Native.IFMXWaylandNativeWindow (as in HelloMain): the window's buffer size.
+  /// The contract of FireLinux.Wayland.Native.IFireLinuxNativeWindow (as in HelloMain): the window's buffer size.
   INativeWindowContract = interface
     ['{B04A2FBC-1322-42BC-98A6-D526A7854F2C}']
     function GetWaylandDisplay: Pointer;
@@ -158,7 +158,7 @@ type
     procedure SetExternalPresentation(const AHandle: TWindowHandle; const AValue: Boolean);
   end;
 
-  TTitleBarListener = class(TInterfacedObject, IFMXWaylandWindowFrameListener)
+  TTitleBarListener = class(TInterfacedObject, IFireLinuxWindowFrameListener)
   private
     [unsafe]
     FForm: TTitleBarForm;
@@ -235,7 +235,7 @@ begin
   // A form without an .fmx file.
   inherited CreateNew(AOwner);
   SetTextCodePage(Output, CP_UTF8);
-  Caption := 'FMXWayland own title bar';
+  Caption := 'FireLinux own title bar';
   Fill.Kind := TBrushKind.Solid;
   Fill.Color := $FFF7F7F7;
   FStates := 0;
@@ -263,7 +263,7 @@ begin
   FTitle.StyledSettings := FTitle.StyledSettings - [TStyledSetting.FontColor, TStyledSetting.Style];
   FTitle.TextSettings.FontColor := TAlphaColors.White;
   FTitle.TextSettings.Font.Style := [TFontStyle.fsBold];
-  FTitle.Text := 'FMXWayland: a title bar drawn by the program';
+  FTitle.Text := 'FireLinux: a title bar drawn by the program';
 
   L := TLabel.Create(Self);
   L.Parent := Self;
@@ -333,7 +333,7 @@ begin
     end;
   Width := FProgramWidth;
   Height := FProgramHeight;
-  if TPlatformServices.Current.SupportsPlatformService(IFMXWaylandWindowFrame, FFrame) then
+  if TPlatformServices.Current.SupportsPlatformService(IFireLinuxWindowFrame, FFrame) then
   begin
     Log('frame: service found');
     Listener := TTitleBarListener.Create;
@@ -345,7 +345,7 @@ begin
     Log(Format('frame: decorated %s', [BoolToStr(FFrame.GetDecorated(Handle), True)]));
   end
   else
-    Log('frame: no IFMXWaylandWindowFrame service');
+    Log('frame: no IFireLinuxWindowFrame service');
   // --size-after=WxH: the program sets the size again once the frame is attached (still before the show).
   for I := 1 to ParamCount do
     if ParamStr(I).StartsWith('--size-after=') then

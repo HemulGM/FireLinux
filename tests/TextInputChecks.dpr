@@ -1,7 +1,7 @@
 ﻿program TextInputChecks;
 
 uses
-  System.SysUtils, System.Types, System.Diagnostics, FMXWayland.Platform, FMXWayland.TextInput;
+  System.SysUtils, System.Types, System.Diagnostics, FireLinux.Wayland.Platform, FireLinux.Wayland.TextInput;
 
 procedure Check(Condition: Boolean; const Message: string);
 begin if not Condition then raise Exception.Create(Message); end;

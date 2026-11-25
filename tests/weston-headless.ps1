@@ -2,26 +2,26 @@
 .SYNOPSIS
   Non-interactive test of samples\Hello on a private headless Weston in WSL, at output scale 1 and 2: the program must
   start, render (its own frame dump and a compositor screenshot are kept), report the buffer size of its window
-  through IFMXWaylandNativeWindow, and exit cleanly. Needs the package weston in the distribution. Moves no mouse and
+  through IFireLinuxNativeWindow, and exit cleanly. Needs the package weston in the distribution. Moves no mouse and
   types nothing (unlike tests\hello-e2e.ps1). -Canvas also checks the canvas class the program reports (TLinuxCanvas:
   FMX's cairo canvas, a build with -Define NOSKIA; TSkRasterCanvas: Skia).
 
 .DESCRIPTION
   Besides the self-test at scale 1 and 2:
-  - the default font (IFMXSystemFontService): fontconfig's sans-serif family at 12, and FMXWAYLAND_FONT taken by the
+  - the default font (IFMXSystemFontService): fontconfig's sans-serif family at 12, and FIRELINUX_FONT taken by the
     canvas (a serif family: the text measures differently from the fallbacks);
   - popups of windows that are not mapped yet (Hello --early-popup, =paint, =create): the drop-down must become an
     xdg_popup of the main window once that is mapped, and both must be on the screen (pixels of the screenshot);
-  - Hello --own-titlebar --selftest (IFMXWaylandWindowFrame without input): decorations off, states and capabilities
-    through the listener, maximize/restore through the service, decorations on and off again; no FMXWayland title
+  - Hello --own-titlebar --selftest (IFireLinuxWindowFrame without input): decorations off, states and capabilities
+    through the listener, maximize/restore through the service, decorations on and off again; no FireLinux title
     bar in the screenshot.
 
 .EXAMPLE
   .\tests\weston-headless.ps1
-  .\tests\weston-headless.ps1 -BuildRoot D:\Work\FMXWayland-build\cairo -Canvas TLinuxCanvas
+  .\tests\weston-headless.ps1 -BuildRoot D:\Work\FireLinux-build\cairo -Canvas TLinuxCanvas
 #>
 param(
-  [string] $BuildRoot = 'D:\Work\FMXWayland-build',
+  [string] $BuildRoot = 'D:\Work\FireLinux-build',
   [string] $Distro = 'Ubuntu-26.04',
   [string] $Config = 'Release',
   [string] $Canvas = ''
@@ -83,9 +83,9 @@ $checks = [ordered]@{
 }
 $failed += Write-Checks $checks
 
-# The default font from FMXWAYLAND_FONT: the canvas must measure (and draw) the default text in it.
-$r = Invoke-WestonRun 'weston-font' 1 @('--backend-probe', '--verbose', '--quit-after=3') @('FMXWAYLAND_FONT=DejaVu Serif,13') 2
-$failed += Write-Checks (Get-HelloFontChecks $r.Log 'FMXWAYLAND_FONT' 'DejaVu Serif' '13.0' -Distinct)
+# The default font from FIRELINUX_FONT: the canvas must measure (and draw) the default text in it.
+$r = Invoke-WestonRun 'weston-font' 1 @('--backend-probe', '--verbose', '--quit-after=3') @('FIRELINUX_FONT=DejaVu Serif,13') 2
+$failed += Write-Checks (Get-HelloFontChecks $r.Log 'FIRELINUX_FONT' 'DejaVu Serif' '13.0' -Distinct)
 
 # Popups of windows that are not mapped yet (the screenshot once the program's window and its drop-down had time to
 # appear: the program starts in about 1.5 s, the drop-down is made after the first configure).
@@ -104,7 +104,7 @@ foreach ($run in @(@(1, 720, 460, @()), @(2, 720, 460, @()), @(1, 1180, 640, @('
   $p = if ($extra) { "own title bar $($extra -join ' '), scale $scale" } else { "own title bar, scale $scale" }
   $checks = Get-HelloOwnTitleBarChecks $r.Log $p $w $h $scale
   $shotOk, $detail = Test-HelloOwnTitleBarShot $r.Shot
-  $checks["$($p): screenshot: the program's caption, no FMXWayland title bar ($detail)"] = $shotOk
+  $checks["$($p): screenshot: the program's caption, no FireLinux title bar ($detail)"] = $shotOk
   $checks["$($p): screenshot: the drop-down ($(Get-ColorCount $r.Shot 0x7EB0E6 6) highlight pixels)"] =
     (Get-ColorCount $r.Shot 0x7EB0E6 6) -gt 1500 * $scale * $scale
   $failed += Write-Checks $checks

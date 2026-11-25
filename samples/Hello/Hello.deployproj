@@ -20,6 +20,15 @@
     <ItemGroup Condition="'$(Platform)'=='iOSSimARM64'"/>
     <ItemGroup Condition="'$(Platform)'=='Win64x'"/>
     <ItemGroup Condition="'$(Platform)'=='Linux64'">
+        <DeployFile Include="..\..\src\Rendering\FireLinux.VulkanShaders.inc" Condition="'$(Config)'=='Release'">
+            <RemoteDir>Hello\</RemoteDir>
+            <RemoteName>FireLinux.VulkanShaders.inc</RemoteName>
+            <DeployClass>ProjectFile</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
         <DeployFile Include="Linux64\Release\Hello" Condition="'$(Config)'=='Release'">
             <RemoteDir>Hello\</RemoteDir>
             <RemoteName>Hello</RemoteName>
