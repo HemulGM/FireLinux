@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Generates FMUX.Api.pas for FMXWayland from the local Delphi installation.
 
@@ -17,6 +17,9 @@
   The script prints how many of the function pointers FMXWayland.Fmux implements (the assignments
   "FMUX.Api.<Name> := ..." in src\FMXWayland.Fmux.pas) and, with -StatusFile, writes the list as Markdown.
 
+.PARAMETER Source
+  Optional explicit FMUX.Api.pas source path, for installations where FMX Linux is supplied through GetIt.
+
 .EXAMPLE
   .\tools\gen-fmux-api.ps1
   .\tools\gen-fmux-api.ps1 -Out D:\Work\FMXWayland-build\gen\FMUX.Api.pas -StatusFile D:\Work\FMXWayland-build\status.md
@@ -24,13 +27,14 @@
 param(
   [string] $Bds = 'C:\Program Files (x86)\Embarcadero\Studio\37.0',
   [string] $Out = 'D:\Work\FMXWayland-build\gen\FMUX.Api.pas',
-  [string] $StatusFile = ''
+  [string] $StatusFile = '',
+  [string] $Source = ''
 )
 
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path $PSScriptRoot -Parent
-$Source = Join-Path $Bds 'source\fmx\FMUX.Api.pas'
+if (-not $Source) { $Source = Join-Path $Bds 'source\fmx\FMUX.Api.pas' }
 if (-not (Test-Path $Source)) { throw "No $Source (is Delphi with the FMX Linux sources installed?)" }
 
 $lines = [IO.File]::ReadAllLines($Source)
@@ -62,9 +66,9 @@ foreach ($m in $rx.Matches($interfaceText)) {
 if ($pointers.Count -lt 100) { throw "Found only $($pointers.Count) function pointers in $Source (format changed?)" }
 
 # What FMXWayland.Fmux implements.
-$fmuxUnit = Join-Path $Root 'src\FMXWayland.Fmux.pas'
 $implemented = @{}
-if (Test-Path $fmuxUnit) {
+foreach ($fmuxUnit in @((Join-Path $Root 'src\FMXWayland.Fmux.pas'), (Join-Path $Root 'src\FMXWayland.Cairo.pas'))) {
+  if (-not (Test-Path $fmuxUnit)) { continue }
   foreach ($m in [regex]::Matches([IO.File]::ReadAllText($fmuxUnit), '(?m)^\s*FMUX\.Api\.(\w+)\s*:=[^;]*;[ \t]*(?://[ \t]*partial:[ \t]*(?<note>[^\r\n]*))?')) {
     $implemented[$m.Groups[1].Value] = if ($m.Groups['note'].Success) { 'partial: ' + $m.Groups['note'].Value.Trim() } else { 'implemented' }
   }
@@ -138,6 +142,8 @@ if ($StatusFile) {
   [void]$st.Append("Generated with ``.\tools\gen-fmux-api.ps1 -StatusFile docs\FMUX-STATUS.md`` (the notes come from the`n")
   [void]$st.Append("``// partial:`` comments in ``src\FMXWayland.Fmux.pas``); a stub that FMX calls logs ``<name> is not implemented```n")
   [void]$st.Append("once at run time.`n`n")
+  [void]$st.Append("``TMainMenu`` is implemented by the ``IFMXMenuService`` adapter in ``FMXWayland.Menus``; the legacy FMUX menu slots`n")
+  [void]$st.Append("below remain unused stubs. See README.md, 'Main menus on Wayland'.`n`n")
   [void]$st.Append("| Function | FMXWayland |`n|---|---|`n")
   foreach ($p in $pointers) {
     $s = if ($implemented.ContainsKey($p.Name)) { $implemented[$p.Name] } else { 'stub' }

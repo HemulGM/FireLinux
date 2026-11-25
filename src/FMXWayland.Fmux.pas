@@ -1,4 +1,4 @@
-{ FMXWayland: native Wayland platform for Delphi FireMonkey on Linux.
+﻿{ FMXWayland: native Wayland platform for Delphi FireMonkey on Linux.
   Copyright (c) 2026 Fasday. MIT license, see LICENSE. }
 
 /// <summary>The FMUX API (the function pointers of FMUX.Api that FMX for Linux calls) implemented over
@@ -11,9 +11,8 @@
 /// conversions stay consistent; popups are placed relative to their parent and take the origin the compositor gives
 /// them.</para>
 /// <para>Painting: the paint context handed to FMX (the Ctx of TFmuxPaintCallback, the context handle of the canvas)
-/// is a PWlFrame; FMX's Skia raster canvas renders into an FMUX bitmap (plain memory here) and copies it with
-/// FmuxCanvasDrawBitmap into the frame, a wl_shm buffer that is then attached to the surface. FMX's cairo canvas
-/// (FMX.Canvas.Linux, used when GlobalUseSkia is False) is not supported.</para>
+/// is a Cairo context over a wl_shm frame for FMX.Canvas.Linux. The optional Skia raster canvas receives the
+/// PWlFrame directly and copies its bitmap into it through FmuxCanvasDrawBitmap.</para>
 /// <para>The function list with their status is in README.md; gen-fmux-api.ps1 reads the assignments in
 /// AssignFmuxApi (a "// partial: ..." comment after an assignment marks a function that is only partly done).</para>
 /// </remarks>
@@ -23,15 +22,19 @@ interface
 
 /// <summary>Assigns the implemented function pointers of FMUX.Api (called by the generated FMUX.Api.LoadLib after it
 /// has assigned the stubs).</summary>
+
 procedure AssignFmuxApi;
 
 implementation
 
 uses
-  System.SysUtils, System.Types, System.Classes, System.UITypes, System.Math, System.Messaging,
-  System.Generics.Collections, FMX.Types, FMX.Graphics, FMX.Forms, FMX.Controls, FMX.Dialogs, FMX.DialogHelper,
-  FMX.Platform, FMX.Platform.Linux, FMUX.Api,
-  FMXWayland.Log, FMXWayland.Platform, FMXWayland.Native;
+  System.SysUtils, System.Types, System.Classes, System.UITypes, System.Math,
+  System.Messaging, System.Generics.Collections, FMX.Types, FMX.Graphics,
+  FMX.Forms, FMX.Controls, FMX.Dialogs, FMX.DialogHelper, FMX.Platform,
+  FMX.Platform.Linux, FMUX.Api, FMXWayland.Log, FMXWayland.Platform,
+  FMXWayland.Native, FMXWayland.OpenGL, FMXWayland.Cairo, FMXWayland.DialogTypes, FMXWayland.Dialogs,
+  FMXWayland.TextInput, FMXWayland.Protocol.TextInputUnstableV3, FMX.Text,
+  FMX.Edit, FMX.Memo, FMX.Presentation.Style, FMXWayland.DragDrop, System.Rtti, FMXWayland.Menus;
 
 type
   /// <summary>An FMX window.</summary>
@@ -44,16 +47,17 @@ type
     FTitlePixels: TArray<Cardinal>;
     FTitleWidth: Integer;
     FTitleHeight: Integer;
+    FPaintPixels: TArray<Byte>;
+    FPaintWidth, FPaintHeight: Integer;
     function Form: TCommonCustomForm;
     function WindowRect: TRectF;
     procedure SetWindowRect(const ARect: TRectF);
     procedure ReportBounds;
     procedure DumpFrame(const AFrame: PWlFrame);
-    procedure RenderTitle(const AWidth, AHeight: Integer; const ATitle: string; const AActive: Boolean;
-      const AScale: Single);
+    procedure RenderTitle(const AWidth, AHeight: Integer; const ATitle: string; const AActive: Boolean; const AScale: Single);
   protected
-    procedure DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string; const AActive: Boolean);
-      override;
+    procedure DoDecorationChanged(const OldInsets: TRect); override;
+    procedure DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string; const AActive: Boolean); override;
     procedure DoPaint(const AFrame: PWlFrame; const ADirty: TRectF); override;
     procedure DoResized; override;
     procedure DoMoved; override;
@@ -61,26 +65,29 @@ type
     procedure DoActivate(const AActive: Boolean); override;
     procedure DoCloseRequest; override;
     procedure DoPopupDone; override;
-    procedure DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState, AWheelDelta: Integer);
-      override;
+    procedure DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState, AWheelDelta: Integer); override;
     procedure DoKey(const AEvent: TWlKeyEvent; const AKey: Word; const AChar: Char; const AState: Integer); override;
     procedure DoScaleChanged; override;
+    function DoDrag(const Data: TWlDragData; const Event: TWlDragEvent; const Point: TPointF;
+      const Suggested: TWlDragOperation): TWlDragOperation; override;
   end;
 
-  /// <summary>An FMUX bitmap: plain memory, premultiplied BGRA, 4 bytes per pixel, no padding.</summary>
-  TFmuxBitmap = record
-    Width: Integer;
-    Height: Integer;
-    Data: Pointer;
-    OwnsData: Boolean;
+  TWaylandDragService = class(TInterfacedObject, IFMXDragDropService)
+    procedure BeginDragDrop(AForm: TCommonCustomForm; const Data: TDragObject; ABitmap: TBitmap);
   end;
-  PFmuxBitmap = ^TFmuxBitmap;
+
+  TDragSourceWatch = class(TComponent)
+    Watched: TComponent;
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+  end;
+  TDragFormAccess = class(TCommonCustomForm);
 
   /// <summary>IFMXWaylandNativeWindow, registered as a platform service.</summary>
-  TNativeWindowService = class(TInterfacedObject, IFMXWaylandNativeWindow)
+  TNativeWindowService = class(TInterfacedObject, IFMXWaylandNativeWindow, IFMXWindowConstraintsService)
   private
     function WindowOf(const AHandle: TWindowHandle): TFmuxWindow;
   public
+    procedure SetConstraints(const AForm: TCommonCustomForm; const AMinWidth, AMinHeight, AMaxWidth, AMaxHeight: Single);
     function GetWaylandDisplay: Pointer;
     function GetWaylandSurface(const AHandle: TWindowHandle): Pointer;
     function GetBufferSize(const AHandle: TWindowHandle): TSize;
@@ -92,11 +99,20 @@ var
   GWakeProc: TFmuxWakeMainThreadProc = nil;
   GMainWindow: TFmuxWindow = nil;
   GModalStack: TList<TFmuxWindow> = nil;
+  GExternalModalDepth: Integer = 0;
   GVersionInfo: TFmuxVersionInfo;
   GClipboardText: string;
   GDumpDir: string;
   GNativeServiceRegistered: Boolean = False;
-  GCanvasChecked: Boolean = False;
+  GImeWindow: TFmuxWindow;
+  GImeData: Pointer;
+  GImeStart, GImeChanged, GImeCommit: TFmuxImeCommitProc;
+  GImeComposing: Boolean;
+  GDragObject: TDragObject;
+  GDragWatch: TDragSourceWatch;
+  GDragService: IFMXDragDropService;
+  GDragServiceRegistered: Boolean;
+  GDragImage: TWlDragImage;
 
 {$REGION 'Helpers'}
 
@@ -127,8 +143,8 @@ end;
 /// Input goes to the top modal window and to popups only while a modal loop runs.
 function InputAllowed(const AWindow: TWlWindow): Boolean;
 begin
-  Result := (GModalStack = nil) or (GModalStack.Count = 0) or (AWindow = GModalStack.Last) or
-    (AWindow.Kind = TWlWindowKind.Popup);
+  Result := (GExternalModalDepth = 0) and ((GModalStack = nil) or (GModalStack.Count = 0) or
+    (AWindow = GModalStack.Last) or (AWindow.Kind = TWlWindowKind.Popup));
 end;
 
 {$ENDREGION}
@@ -165,8 +181,22 @@ begin
     FCreate.BoundsChanged(FCreate.Data, WindowRect);
 end;
 
-procedure TFmuxWindow.RenderTitle(const AWidth, AHeight: Integer; const ATitle: string; const AActive: Boolean;
-  const AScale: Single);
+procedure TFmuxWindow.DoDecorationChanged(const OldInsets: TRect);
+var
+  Service: IFMXWindowConstraintsService;
+begin
+  if not Visible then
+    Exit;
+  // Decoration negotiation must preserve FMX's outer rectangle.
+  SetWindowRect(RectF(Origin.X - OldInsets.Left, Origin.Y - OldInsets.Top,
+    Origin.X + Width + OldInsets.Right, Origin.Y + Height + OldInsets.Bottom));
+  if (Form <> nil) and Form.IsHandleAllocated and
+    TPlatformServices.Current.SupportsPlatformService(IFMXWindowConstraintsService, Service) then
+    with Form.Constraints do
+      Service.SetConstraints(Form, MinWidth, MinHeight, MaxWidth, MaxHeight);
+end;
+
+procedure TFmuxWindow.RenderTitle(const AWidth, AHeight: Integer; const ATitle: string; const AActive: Boolean; const AScale: Single);
 var
   B: TBitmap;
   Data: TBitmapData;
@@ -179,37 +209,36 @@ begin
   try
     B.Clear(0);
     if B.Canvas.BeginScene then
-      try
-        if AActive then
-          B.Canvas.Fill.Color := $FF2E3436
-        else
-          B.Canvas.Fill.Color := $FF8A8F8F;
-        B.Canvas.Font.Size := 13 * AScale;
-        B.Canvas.Font.Style := [TFontStyle.fsBold];
-        B.Canvas.FillText(RectF(0, 0, AWidth, AHeight), ATitle, False, 1, [], TTextAlign.Center,
-          TTextAlign.Center);
-      finally
-        B.Canvas.EndScene;
-      end;
+    try
+      if AActive then
+        B.Canvas.Fill.Color := $FF2E3436
+      else
+        B.Canvas.Fill.Color := $FF8A8F8F;
+      B.Canvas.Font.Size := 13 * AScale;
+      B.Canvas.Font.Style := [TFontStyle.fsBold];
+      B.Canvas.FillText(RectF(0, 0, AWidth, AHeight), ATitle, False, 1, [], TTextAlign.Center,
+        TTextAlign.Center);
+    finally
+      B.Canvas.EndScene;
+    end;
     if B.Map(TMapAccess.Read, Data) then
-      try
-        if Data.PixelFormat <> TPixelFormat.BGRA then
-          Exit;
-        SetLength(FTitlePixels, AWidth * AHeight);
-        for Y := 0 to AHeight - 1 do
-          Move(Data.GetScanline(Y)^, FTitlePixels[Y * AWidth], AWidth * 4);
-        FTitleWidth := AWidth;
-        FTitleHeight := AHeight;
-      finally
-        B.Unmap(Data);
-      end;
+    try
+      if Data.PixelFormat <> TPixelFormat.BGRA then
+        Exit;
+      SetLength(FTitlePixels, AWidth * AHeight);
+      for Y := 0 to AHeight - 1 do
+        Move(Data.GetScanline(Y)^, FTitlePixels[Y * AWidth], AWidth * 4);
+      FTitleWidth := AWidth;
+      FTitleHeight := AHeight;
+    finally
+      B.Unmap(Data);
+    end;
   finally
     B.Free;
   end;
 end;
 
-procedure TFmuxWindow.DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string;
-  const AActive: Boolean);
+procedure TFmuxWindow.DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string; const AActive: Boolean);
 var
   Key: string;
   X, Y: Integer;
@@ -258,20 +287,42 @@ end;
 procedure TFmuxWindow.DoPaint(const AFrame: PWlFrame; const ADirty: TRectF);
 var
   R: TRectF;
+  Context: Pointer;
 begin
   if not Assigned(FCreate.PaintCallback) then
     Exit;
-  if not GCanvasChecked then
-  begin
-    // (FMX.Skia cannot be used here to set GlobalUseSkia: its canvas service must initialize after FMX.Platform.)
-    GCanvasChecked := True;
-    if (TCanvasManager.DefaultCanvas <> nil) and (TCanvasManager.DefaultCanvas.ClassName = 'TLinuxCanvas') then
-      WlLog(TWlLogLevel.Error, 'FMX''s cairo canvas (FMX.Canvas.Linux) is not supported by FMXWayland and draws ' +
-        'nothing: add FMX.Skia to the uses of the program and set GlobalUseSkia := True before ' +
-        'Application.Initialize.');
-  end;
   R := ADirty;
-  FCreate.PaintCallback(FCreate.Data, AFrame, PRectFArray(@R), 1);
+  if (TCanvasManager.DefaultCanvas <> nil) and (TCanvasManager.DefaultCanvas.ClassName = 'TLinuxCanvas') then
+  begin
+    if AFrame.Bits = nil then
+      Exit;
+    // Tell FMX about the same whole pixels that Wayland will damage. This also includes controls
+    // touching the rounded edge when FMX decides which controls to repaint.
+    R := RectF(Floor(ADirty.Left * AFrame.Scale) / AFrame.Scale,
+      Floor(ADirty.Top * AFrame.Scale) / AFrame.Scale,
+      Ceil(ADirty.Right * AFrame.Scale) / AFrame.Scale,
+      Ceil(ADirty.Bottom * AFrame.Scale) / AFrame.Scale);
+    // Rotating wl_shm buffers can contain older frames; retain the latest pixels outside the dirty region.
+    if (FPaintWidth <> AFrame.Width) or (FPaintHeight <> AFrame.Height) or
+      (Length(FPaintPixels) <> NativeInt(AFrame.Stride) * AFrame.Height) then
+    begin
+      FPaintPixels := nil;
+      SetLength(FPaintPixels, NativeInt(AFrame.Stride) * AFrame.Height);
+      FPaintWidth := AFrame.Width;
+      FPaintHeight := AFrame.Height;
+    end;
+    Move(FPaintPixels[0], AFrame.Bits^, Length(FPaintPixels));
+    Context := CreateCairoFrame(AFrame.Bits, AFrame.Width, AFrame.Height, AFrame.Stride, AFrame.Scale);
+    try
+      FCreate.PaintCallback(FCreate.Data, Context, PRectFArray(@R), 1);
+    finally
+      DestroyCairoFrame(Context);
+    end;
+    Move(AFrame.Bits^, FPaintPixels[0], Length(FPaintPixels));
+    AFrame.Drawn := True;
+  end
+  else
+    FCreate.PaintCallback(FCreate.Data, AFrame, PRectFArray(@R), 1);
   if (GDumpDir <> '') and AFrame.Drawn then
     DumpFrame(AFrame);
 end;
@@ -375,8 +426,7 @@ begin
     FCreate.Close(FCreate.Data);
 end;
 
-procedure TFmuxWindow.DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState,
-  AWheelDelta: Integer);
+procedure TFmuxWindow.DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState, AWheelDelta: Integer);
 var
   P: TPointF;
   F: TCommonCustomForm;
@@ -412,6 +462,7 @@ procedure TFmuxWindow.DoKey(const AEvent: TWlKeyEvent; const AKey: Word; const A
 begin
   if not InputAllowed(Self) or not Assigned(FCreate.Key) then
     Exit;
+  if (AEvent = TWlKeyEvent.Down) and HandleWaylandMenuKey(Form, AKey, AChar, FmuxStateToShiftState(AState)) then Exit;
   FCreate.Key(FCreate.Data, TFmuxKeyKind(Ord(AEvent)), AKey, AChar, AState);
 end;
 
@@ -431,6 +482,115 @@ end;
 
 {$ENDREGION}
 
+{$REGION 'Drag and drop'}
+
+procedure TDragSourceWatch.Notification(AComponent: TComponent; Operation: TOperation);
+begin
+  inherited;
+  if (Operation = opRemove) and (Watched = AComponent) then Watched := nil;
+  if (Operation = opRemove) and (GDragObject.Source = AComponent) then GDragObject.Source := nil;
+end;
+
+procedure EndFmDrag(Operation: TWlDragOperation);
+var Source: TObject; Control: IControl; Watch: TDragSourceWatch; ComponentSource: Boolean;
+begin
+  Source := GDragObject.Source;
+  if Source is TComponent then TComponent(Source).RemoveFreeNotification(GDragWatch);
+  if (Source is TComponent) and ((csDestroying in TComponent(Source).ComponentState) or
+    ((TComponent(Source).Owner <> nil) and (csDestroying in TComponent(Source).Owner.ComponentState))) then Source := nil;
+  ComponentSource := Source is TComponent;
+  GDragObject := Default(TDragObject);
+  GDragImage := Default(TWlDragImage);
+  Watch := TDragSourceWatch.Create(nil);
+  try
+    if Source is TComponent then
+    begin Watch.Watched := TComponent(Source); Watch.Watched.FreeNotification(Watch); end;
+    try
+      if Supports(Source, IControl, Control) then
+      begin
+        if Control.GetDragMode <> TDragMode.dmAutomatic then Control.MouseUp(TMouseButton.mbLeft, [], $FFFF, $FFFF);
+        if not ComponentSource or (Watch.Watched <> nil) then Control.DragEnd;
+      end;
+    except Application.HandleException(nil); end;
+  finally Watch.Free; end;
+end;
+
+function TFmuxWindow.DoDrag(const Data: TWlDragData; const Event: TWlDragEvent; const Point: TPointF;
+  const Suggested: TWlDragOperation): TWlDragOperation;
+var Drag: TDragObject; Op: TDragOperation; F: TCommonCustomForm;
+begin
+  Result := TWlDragOperation.None;
+  F := Form;
+  if F = nil then Exit;
+  try
+    if Event = TWlDragEvent.Leave then begin F.DragLeave; Exit; end;
+    if not InputAllowed(Self) then Exit;
+    if Data.Internal then Drag := GDragObject
+    else
+    begin
+      Drag := Default(TDragObject); Drag.Files := Copy(Data.Files);
+      if Data.Text <> '' then Drag.Data := Data.Text;
+    end;
+    Op := TDragOperation.None;
+    // DragOver leaves Op untouched when FindTarget finds nothing. Begin at None to reject that case.
+    F.DragOver(Drag, F.ClientToScreen(Point), Op);
+    if (WlDisplay = nil) or not WlDisplay.Windows.Contains(Self) then Exit;
+    if Event = TWlDragEvent.Drop then
+    begin
+      if TWlDragOperation(Ord(Op)) <> Suggested then Exit;
+      F.DragDrop(Drag, F.ClientToScreen(Point));
+    end;
+    Result := TWlDragOperation(Ord(Op));
+  except Application.HandleException(F); end;
+end;
+
+procedure WlBeginDragDrop(Wnd: Pointer; Data, Bitmap: Pointer); cdecl;
+var Payload: TWlDragData;
+begin
+  Payload := Default(TWlDragData);
+  Payload.Internal := True; Payload.Files := Copy(GDragObject.Files);
+  if GDragObject.Data.IsType<string> then Payload.Text := GDragObject.Data.AsString;
+  try
+    if (Win(Wnd) = nil) or not InputAllowed(Win(Wnd)) or
+      not Disp.BeginDrag(Win(Wnd), Payload, EndFmDrag, GDragImage) then EndFmDrag(TWlDragOperation.None);
+  except EndFmDrag(TWlDragOperation.None); Application.HandleException(nil); end;
+end;
+
+procedure TWaylandDragService.BeginDragDrop(AForm: TCommonCustomForm; const Data: TDragObject; ABitmap: TBitmap);
+var W: Pointer; Map: TBitmapData; X, Y: Integer;
+begin
+  if (AForm = nil) or not (AForm.Handle is TLinuxWindowHandle) then Exit;
+  Disp.CancelDrag;
+  TDragFormAccess(AForm).SetCaptured(nil);
+  GDragObject := Data;
+  // Automatic FMX drags pass Source only; expose its normal Data property as well.
+  if GDragObject.Data.IsEmpty and (Data.Source is TFmxObject) then GDragObject.Data := TFmxObject(Data.Source).Data;
+  if GDragWatch = nil then GDragWatch := TDragSourceWatch.Create(nil);
+  if Data.Source is TComponent then TComponent(Data.Source).FreeNotification(GDragWatch);
+  GDragImage := Default(TWlDragImage);
+  if (ABitmap <> nil) and not ABitmap.IsEmpty and (ABitmap.Width <= 512) and (ABitmap.Height <= 512) and
+    ABitmap.Map(TMapAccess.Read, Map) then
+  try
+    GDragImage.Width := ABitmap.Width; GDragImage.Height := ABitmap.Height;
+    SetLength(GDragImage.Pixels, ABitmap.Width * ABitmap.Height);
+    for Y := 0 to ABitmap.Height - 1 do
+      for X := 0 to ABitmap.Width - 1 do GDragImage.Pixels[Y * ABitmap.Width + X] := Map.GetPixel(X,Y);
+  finally ABitmap.Unmap(Map); end;
+  W := TLinuxWindowHandle(AForm.Handle).Window;
+  WlBeginDragDrop(W, nil, nil);
+end;
+
+procedure RegisterDragService;
+begin
+  if GDragServiceRegistered then Exit;
+  if GDragService = nil then GDragService := TWaylandDragService.Create;
+  TPlatformServices.Current.RemovePlatformService(IFMXDragDropService);
+  TPlatformServices.Current.AddPlatformService(IFMXDragDropService, GDragService);
+  GDragServiceRegistered := True;
+end;
+
+{$ENDREGION}
+
 {$REGION 'TNativeWindowService'}
 
 function TNativeWindowService.WindowOf(const AHandle: TWindowHandle): TFmuxWindow;
@@ -444,6 +604,23 @@ begin
     if (P <> nil) and WlDisplay.Windows.Contains(TWlWindow(P)) then
       Result := TFmuxWindow(P);
   end;
+end;
+
+procedure TNativeWindowService.SetConstraints(const AForm: TCommonCustomForm;
+  const AMinWidth, AMinHeight, AMaxWidth, AMaxHeight: Single);
+var W: TFmuxWindow; Ins: TRect;
+  function ClientLimit(const Value: Single; const Insets: Integer): Integer;
+  begin
+    if Value <= 0 then Result := 0 else Result := Max(1, Ceil(Value) - Insets);
+  end;
+begin
+  if (AForm = nil) or not AForm.IsHandleAllocated then Exit;
+  W := WindowOf(AForm.Handle);
+  if W = nil then Exit;
+  Ins := W.NormalDecorationInsets;
+  W.SetSizeConstraints(ClientLimit(AMinWidth, Ins.Left + Ins.Right),
+    ClientLimit(AMinHeight, Ins.Top + Ins.Bottom), ClientLimit(AMaxWidth, Ins.Left + Ins.Right),
+    ClientLimit(AMaxHeight, Ins.Top + Ins.Bottom));
 end;
 
 function TNativeWindowService.GetWaylandDisplay: Pointer;
@@ -512,6 +689,7 @@ begin
   begin
     GNativeServiceRegistered := True;
     TPlatformServices.Current.AddPlatformService(IFMXWaylandNativeWindow, TNativeWindowService.Create);
+    TPlatformServices.Current.AddPlatformService(IFMXWindowConstraintsService, TNativeWindowService.Create);
   end;
 end;
 
@@ -601,6 +779,7 @@ var
   W: TFmuxWindow;
   Kind: TWlWindowKind;
 begin
+  RegisterDragService;
   if CreateStruct.Popup then
     Kind := TWlWindowKind.Popup
   else
@@ -608,14 +787,16 @@ begin
   W := TFmuxWindow.Create(Disp, Kind, CreateStruct.Transparent or CreateStruct.Popup);
   W.FCreate := CreateStruct;
   W.FCreate.Title := nil;
-  W.Borderless := CreateStruct.BorderStyle = TFmuxBorderStyle.None;
-  W.PrepareDecorations;
+  W.ConfigureFrame(CreateStruct.BorderStyle = TFmuxBorderStyle.None,
+    CreateStruct.BorderStyle in [TFmuxBorderStyle.Sizeable, TFmuxBorderStyle.SizeToolWin],
+    CreateStruct.BorderStyle in [TFmuxBorderStyle.ToolWindow, TFmuxBorderStyle.SizeToolWin],
+    CreateStruct.SystemMenuIcon, CreateStruct.MinimizeIcon, CreateStruct.MaximizeIcon);
   if CreateStruct.Title <> nil then
     W.SetTitle(CreateStruct.Title);
   W.SetWindowRect(RectF(CreateStruct.X, CreateStruct.Y, CreateStruct.X + CreateStruct.Width,
-    CreateStruct.Y + CreateStruct.Height));
+      CreateStruct.Y + CreateStruct.Height));
   WlLog(TWlLogLevel.Debug, 'CreateWindow %p "%s" popup %s %.0f,%.0f %.0fx%.0f', [Pointer(W), W.Title,
-    BoolToStr(CreateStruct.Popup, True), CreateStruct.X, CreateStruct.Y, CreateStruct.Width, CreateStruct.Height]);
+      BoolToStr(CreateStruct.Popup, True), CreateStruct.X, CreateStruct.Y, CreateStruct.Width, CreateStruct.Height]);
   Result := W;
 end;
 
@@ -630,6 +811,11 @@ begin
     GMainWindow := nil;
   if GModalStack <> nil then
     GModalStack.Remove(W);
+  if GImeWindow = W then
+  begin
+    Disp.EndTextInput(W, False);
+    GImeWindow := nil; GImeData := nil; GImeComposing := False;
+  end;
   W.Free;
 end;
 
@@ -690,6 +876,17 @@ begin
   begin
     if W.Kind = TWlWindowKind.Popup then
       W.Parent := PopupParent(W);
+    if W.Form <> nil then
+    begin
+      with W.Form.Constraints do
+      begin
+        var Service: IFMXWindowConstraintsService;
+        if TPlatformServices.Current.SupportsPlatformService(IFMXWindowConstraintsService, Service) then
+          Service.SetConstraints(W.Form, MinWidth, MinHeight, MaxWidth, MaxHeight);
+      end;
+    end;
+    if W.FCreate.StayOnTop and (W.Parent = nil) and (GMainWindow <> W) then
+      W.Parent := GMainWindow;
     W.Show;
   end
   else
@@ -709,8 +906,39 @@ begin
 end;
 
 procedure WlSetWindowIcon(Wnd: Pointer; Data: Pointer; Size: Integer); cdecl;
+var Stream: TMemoryStream; Source, Square: TBitmap; Map: TBitmapData;
+  Pixels: TArray<Cardinal>; N, Y: Integer;
 begin
-  // xdg-toplevel-icon-v1 is not bound yet; the compositor shows the icon of the .desktop file of the app id.
+  if Wnd = nil then Exit;
+  if (Data = nil) or (Size <= 0) then
+  begin Win(Wnd).SetIcon(nil, 0); Exit; end;
+  Stream := TMemoryStream.Create;
+  Source := TBitmap.Create;
+  Square := nil;
+  try
+    try
+      Stream.WriteBuffer(Data^, Size); Stream.Position := 0;
+      Source.LoadFromStream(Stream);
+      if (Source.Width <= 0) or (Source.Height <= 0) then Exit;
+      N := Min(256, Max(Source.Width, Source.Height));
+      Square := TBitmap.Create(N, N); Square.Clear(0);
+      if Square.Canvas.BeginScene then
+      try
+        var Ratio := Min(N / Source.Width, N / Source.Height);
+        var W := Source.Width * Ratio; var H := Source.Height * Ratio;
+        Square.Canvas.DrawBitmap(Source, RectF(0, 0, Source.Width, Source.Height),
+          RectF((N-W)/2, (N-H)/2, (N+W)/2, (N+H)/2), 1);
+      finally Square.Canvas.EndScene; end;
+      if Square.Map(TMapAccess.Read, Map) then
+      try
+        SetLength(Pixels, N*N);
+        for Y := 0 to N-1 do Move(Map.GetScanline(Y)^, Pixels[Y*N], N*4);
+        Win(Wnd).SetIcon(Pixels, N);
+      finally Square.Unmap(Map); end;
+    except
+      on E: Exception do WlLogOnce('window-icon', 'cannot decode window icon: ' + E.Message);
+    end;
+  finally Square.Free; Source.Free; Stream.Free; end;
 end;
 
 procedure WlActivateWindow(Wnd: Pointer); cdecl;
@@ -1044,6 +1272,11 @@ var
   DRow, SRow: PCardinal;
   Op: Cardinal;
 begin
+  if (TCanvasManager.DefaultCanvas <> nil) and (TCanvasManager.DefaultCanvas.ClassName = 'TLinuxCanvas') then
+  begin
+    CairoDrawBitmap(Ctx, Bitmap, Src, Dst, Opacity, HighSpeed);
+    Exit;
+  end;
   F := Ctx;
   B := Bitmap;
   if (F = nil) or (B = nil) or (B.Data = nil) then
@@ -1169,9 +1402,8 @@ function WlMessageDialog(AMessage: PChar; DlgType, Buttons: Integer): Integer; c
 var
   Btns: TMsgDlgButtons;
   B, Default: TMsgDlgBtn;
-  R: TModalResult;
+  Backend: IFMXWaylandDialogBackend;
 begin
-  // No native toolkit: FMX's own dialog form (FMX.DialogHelper, the one of its asynchronous dialogs), modal.
   Btns := [];
   for B := Low(TMsgDlgBtn) to High(TMsgDlgBtn) do
     if Buttons and CDialogButtonBits[B] <> 0 then
@@ -1185,32 +1417,260 @@ begin
       Default := B;
       Break;
     end;
-  R := mrNone;
-  TDialogHelper.MessageDialog(string(AMessage), TMsgDlgType(EnsureRange(DlgType, Ord(Low(TMsgDlgType)),
-    Ord(High(TMsgDlgType)))), Btns, Default, 0,
-    procedure(const AResult: TModalResult)
-    begin
-      R := AResult;
-    end, True);
-  Result := R;
+  Backend := GetWaylandDialogBackend;
+  Result := Backend.MessageDialog(string(AMessage), TMsgDlgType(EnsureRange(DlgType, Ord(Low(TMsgDlgType)),
+    Ord(High(TMsgDlgType)))), Btns, Default);
+end;
+
+function WlFilesDialog(Title, Filter, InitialName, InitialDir, Files: PChar; MaxLength: Integer;
+  var FilterIndex: Integer; AOptions: Integer): Boolean; cdecl;
+var
+  Request: TWaylandFileDialogRequest;
+  Parts, Paths: TArray<string>;
+  Backend: IFMXWaylandDialogBackend;
+  I, SelectedIndex: Integer;
+  Output: string;
+begin
+  MessageDialogCheckInUIThread;
+  Result := False;
+  if (Files = nil) or (MaxLength <= 0) then Exit;
+  Request := Default(TWaylandFileDialogRequest);
+  if AOptions and FMUX_FilesDialog_FOLDER <> 0 then Request.Kind := TWaylandFileDialogKind.SelectFolder
+  else if AOptions and FMUX_FilesDialog_SAVE <> 0 then Request.Kind := TWaylandFileDialogKind.SaveFile
+  else Request.Kind := TWaylandFileDialogKind.OpenFile;
+  Request.Title := string(Title);
+  Request.InitialFile := string(InitialName);
+  Request.InitialFolder := string(InitialDir);
+  Request.FilterIndex := FilterIndex;
+  Request.Multiple := AOptions and FMUX_FilesDialog_MULTY <> 0;
+  Request.ConfirmOverwrite := AOptions and FMUX_FilesDialog_OVERWRITE <> 0;
+  Parts := string(Filter).Split(['|']);
+  SetLength(Request.Filters, Length(Parts) div 2);
+  for I := 0 to High(Request.Filters) do
+  begin
+    Request.Filters[I].Name := Parts[I * 2];
+    Request.Filters[I].Patterns := Parts[I * 2 + 1].Split([';']);
+  end;
+  Backend := GetWaylandDialogBackend;
+  SelectedIndex := FilterIndex;
+  if not Backend.FileDialog(Request, Paths, SelectedIndex) then Exit;
+  if Length(Paths) = 0 then raise EArgumentException.Create('Dialog backend returned no files');
+  if ((not Request.Multiple) or (Request.Kind = TWaylandFileDialogKind.SaveFile)) and (Length(Paths) <> 1) then
+    raise EArgumentException.Create('Dialog backend returned multiple files for a single selection');
+  for Output in Paths do
+    if (Output = '') or Output.Contains(#0) or Output.Contains(#10) or Output.Contains(#13) then
+      raise EArgumentException.Create('Invalid filename returned by dialog backend');
+  Output := string.Join(#10, Paths);
+  if Length(Output) >= MaxLength then
+    raise EArgumentException.Create('Selected filenames exceed the FMUX file dialog buffer');
+  Move(PChar(Output)^, Files^, (Length(Output) + 1) * SizeOf(Char));
+  FilterIndex := SelectedIndex;
+  Result := True;
+end;
+
+function WlInputQuery(ACaption, APrompt, AValue: PChar; MaxLength: Integer): Boolean; cdecl;
+var Backend: IFMXWaylandDialogBackend; Values: TArray<string>;
+begin
+  MessageDialogCheckInUIThread;
+  Result := False;
+  if (AValue = nil) or (MaxLength <= 0) then Exit;
+  Backend := GetWaylandDialogBackend;
+  Values := [string(AValue)];
+  if not Backend.InputQuery(string(ACaption), [string(APrompt)], Values) then Exit;
+  if (Length(Values) <> 1) or (Length(Values[0]) >= MaxLength) or Values[0].Contains(#0) then
+    raise EArgumentException.Create('Input result exceeds the FMUX input buffer');
+  Move(PChar(Values[0])^, AValue^, (Length(Values[0]) + 1) * SizeOf(Char));
+  Result := True;
 end;
 
 {$ENDREGION}
 
 {$REGION 'Input method'}
 
-procedure WlImeEnterControl(Wnd: Pointer; StartProc, ChangedProc, CommitProc: TFmuxImeCommitProc; Rect: TRect;
-  Data: Pointer); cdecl;
+function ImeControl: TControl;
+var Object_: TObject;
 begin
-  // text-input-unstable-v3 is not used yet: characters come from the keyboard (xkbcommon, with compose sequences).
+  Result := nil;
+  if GImeData = nil then Exit;
+  Object_ := TTextService(GImeData).Owner.GetObject;
+  if Object_ is TStyledPresentation then Result := TStyledPresentation(Object_).PresentedControl
+  else if Object_ is TControl then Result := TControl(Object_);
+end;
+
+function ImeDocument(Control: TControl; Service: TTextService): string;
+begin
+  // The modern FMX text service holds only the current line, even for a memo.
+  if Control is TCustomMemo then Result := TCustomMemo(Control).Lines.Text
+  else if Control is TCustomEdit then Result := TCustomEdit(Control).Text
+  else Result := Service.Text;
+end;
+
+function ImeTextState: TWaylandTextState;
+var
+  Service: TTextService; TextInput: ITextInput; ReadOnly_: IReadOnly;
+  Keyboard: IVirtualKeyboardControl; CaretOwner: ICaret; Caret: TCustomCaret;
+  Flasher: IControl; Control, Parent: TControl; Point: TPointF;
+  Bounds: TRect; Cursor, Anchor, First, Last: Integer;
+  Document: string;
+begin
+  Result := Default(TWaylandTextState);
+  if (GImeWindow = nil) or (GImeData = nil) then Exit;
+  Service := TTextService(GImeData);
+  if not Supports(Service.Owner, ITextInput, TextInput) then Exit;
+  Control := ImeControl;
+  Document := ImeDocument(Control, Service);
+  Cursor := TextPointToOffset(Document, Service.CaretPosition);
+  Bounds := TextInput.GetSelectionBounds;
+  First := TextPointToOffset(Document, Bounds.TopLeft);
+  Last := TextPointToOffset(Document, Bounds.BottomRight);
+  if Cursor = First then Anchor := Last else Anchor := First;
+  Result := MakeSurrounding(Document, Cursor, Anchor);
+  Result.Enabled := InputAllowed(GImeWindow) and (Service.ImeMode <> TImeMode.imDisable);
+  if (Control <> nil) and Supports(Control, IReadOnly, ReadOnly_) then
+    Result.Enabled := Result.Enabled and not ReadOnly_.ReadOnly;
+  if Service.Multiline then Result.Hint := ZWP_TEXT_INPUT_V3_CONTENT_HINT_MULTILINE;
+  // Never expose passwords as surrounding text to the desktop IME.
+  if (Control <> nil) and Supports(Control, IVirtualKeyboardControl, Keyboard) and Keyboard.IsPassword then
+  begin
+    Result.HasSurrounding := False; Result.Text := ''; Result.Cursor := 0; Result.Anchor := 0;
+    Result.Hint := ZWP_TEXT_INPUT_V3_CONTENT_HINT_HIDDEN_TEXT or ZWP_TEXT_INPUT_V3_CONTENT_HINT_SENSITIVE_DATA;
+    Result.Purpose := ZWP_TEXT_INPUT_V3_CONTENT_PURPOSE_PASSWORD;
+  end;
+  if not ((Control is TCustomEdit) or (Control is TCustomMemo)) then
+  begin Result.HasSurrounding := False; Result.Text := ''; Result.Cursor := 0; Result.Anchor := 0; end;
+  Point := TextInput.GetTargetClausePointF;
+  Result.CursorRect := Rect(Round(Point.X), Round(Point.Y), Round(Point.X) + 1, Round(Point.Y) + 18);
+  if (Control <> nil) and Supports(Control, ICaret, CaretOwner) then
+  begin
+    Caret := CaretOwner.GetObject;
+    if (Caret <> nil) and Supports(Caret.Flasher, IControl, Flasher) then
+    begin
+      Parent := TControl(Flasher.GetObject).ParentControl;
+      if Parent = nil then Parent := Control;
+      Point := Parent.LocalToAbsolute(Caret.Pos);
+      Result.CursorRect := Rect(Floor(Point.X), Floor(Point.Y),
+        Ceil(Point.X + Max(1, Caret.Size.Width)), Ceil(Point.Y + Max(1, Caret.Size.Height)));
+    end;
+  end;
+end;
+
+procedure CancelImeComposition;
+var Data: Pointer; Proc: TFmuxImeCommitProc;
+begin
+  Data := GImeData; Proc := GImeChanged;
+  if not GImeComposing then Exit;
+  GImeComposing := False;
+  if (Data <> nil) and Assigned(Proc) then Proc(Data, nil);
+end;
+
+procedure DeleteImeSurrounding(Before_, After_: Cardinal);
+var
+  Service: TTextService; TextInput: ITextInput; Control: TControl;
+  Bytes: UTF8String; Document: string; Bounds: TRect; First, Last, BeforeCount, AfterCount, StartByte, EndByte: Integer;
+
+  procedure SelectAndDelete(Start, Count: Integer);
+  begin
+    if Count = 0 then Exit;
+    if Control is TCustomEdit then
+    begin
+      TCustomEdit(Control).SelStart := Start;
+      if GImeData <> Pointer(Service) then Exit;
+      TCustomEdit(Control).SelLength := Count;
+      if GImeData <> Pointer(Service) then Exit;
+      TCustomEdit(Control).DeleteSelection;
+    end
+    else if Control is TCustomMemo then
+    begin
+      TCustomMemo(Control).SelStart := Start;
+      if GImeData <> Pointer(Service) then Exit;
+      TCustomMemo(Control).SelLength := Count;
+      if GImeData <> Pointer(Service) then Exit;
+      TCustomMemo(Control).DeleteSelection;
+    end;
+  end;
+
+begin
+  if (Before_ = 0) and (After_ = 0) then Exit;
+  Service := TTextService(GImeData);
+  if not Supports(Service.Owner, ITextInput, TextInput) then Exit;
+  Control := ImeControl;
+  Document := ImeDocument(Control, Service);
+  Bounds := TextInput.GetSelectionBounds;
+  First := TextPointToOffset(Document, Bounds.TopLeft);
+  Last := TextPointToOffset(Document, Bounds.BottomRight);
+  Bytes := UTF8String(Document);
+  StartByte := Length(UTF8String(Copy(Document, 1, First)));
+  EndByte := Length(UTF8String(Copy(Document, 1, Last)));
+  if (Before_ > Cardinal(StartByte)) or (After_ > Cardinal(Length(Bytes) - EndByte)) then
+    raise EArgumentException.Create('IME deletion exceeds the surrounding text');
+  BeforeCount := Utf8RangeToUtf16(Bytes, StartByte - Integer(Before_), Before_);
+  AfterCount := Utf8RangeToUtf16(Bytes, EndByte, After_);
+  // Delete after the selection first, so indices before it remain stable.
+  SelectAndDelete(Last, AfterCount);
+  if GImeData <> Pointer(Service) then Exit;
+  SelectAndDelete(First - BeforeCount, BeforeCount);
+  if GImeData <> Pointer(Service) then Exit;
+  if Control is TCustomEdit then
+  begin TCustomEdit(Control).SelStart := First - BeforeCount; TCustomEdit(Control).SelLength := Last - First; end
+  else if Control is TCustomMemo then
+  begin TCustomMemo(Control).SelStart := First - BeforeCount; TCustomMemo(Control).SelLength := Last - First; end;
+end;
+
+procedure ApplyImeBatch(const Batch: TWaylandTextBatch);
+var Data: Pointer; Window: TFmuxWindow; Empty: Char;
+begin
+  Data := GImeData; Window := GImeWindow;
+  if (Data = nil) or (Window = nil) or not InputAllowed(Window) then Exit;
+  try
+    // All text-input events are applied as a single done transaction.
+    Empty := #0;
+    if GImeComposing and Assigned(GImeChanged) then GImeChanged(Data, @Empty);
+    if (Data <> GImeData) or (Window <> GImeWindow) then Exit;
+    DeleteImeSurrounding(Batch.BeforeLength, Batch.AfterLength);
+    if (Data <> GImeData) or (Window <> GImeWindow) then Exit;
+    if Batch.Commit <> '' then
+    begin
+      if not GImeComposing and Assigned(GImeStart) then
+      begin GImeComposing := True; GImeStart(Data, nil); end;
+      if (Data <> GImeData) or (Window <> GImeWindow) then Exit;
+      GImeComposing := False;
+      if Assigned(GImeCommit) then GImeCommit(Data, PChar(Batch.Commit));
+    end;
+    if (Data <> GImeData) or (Window <> GImeWindow) then Exit;
+    if Batch.Preedit <> '' then
+    begin
+      if not GImeComposing and Assigned(GImeStart) then
+      begin GImeComposing := True; GImeStart(Data, PChar(Batch.Preedit)); end;
+      if (Data <> GImeData) or (Window <> GImeWindow) then Exit;
+      if Assigned(GImeChanged) then GImeChanged(Data, PChar(Batch.Preedit));
+    end
+    else CancelImeComposition;
+  except Application.HandleException(nil); end;
+end;
+
+procedure WlImeEnterControl(Wnd: Pointer; StartProc, ChangedProc, CommitProc: TFmuxImeCommitProc; Rect: TRect; Data: Pointer); cdecl;
+begin
+  CancelImeComposition;
+  GImeWindow := Win(Wnd); GImeData := Data;
+  GImeStart := StartProc; GImeChanged := ChangedProc; GImeCommit := CommitProc;
+  if (GImeWindow = nil) or (GImeData = nil) then Exit;
+  Disp.BeginTextInput(GImeWindow,
+    function: TWaylandTextState begin Result := ImeTextState; end,
+    procedure(Batch: TWaylandTextBatch) begin ApplyImeBatch(Batch); end,
+    procedure begin CancelImeComposition; end);
 end;
 
 procedure WlImeExitControl(Wnd: Pointer); cdecl;
 begin
+  if GImeWindow <> Win(Wnd) then Exit;
+  Disp.EndTextInput(GImeWindow, False); // TLinuxTextService.ExitControl ends its own composition immediately after us.
+  GImeWindow := nil; GImeData := nil; GImeComposing := False;
+  GImeStart := nil; GImeChanged := nil; GImeCommit := nil;
 end;
 
 procedure WlImeSetCaretPos(Value: TPoint); cdecl;
 begin
+  // Value is a text index (column/line), not a pixel coordinate. Poll the actual caret after FMX updates it.
 end;
 
 {$ENDREGION}
@@ -1238,7 +1698,7 @@ begin
   FMUX.Api.FmuxShowWindow := WlShowWindow;
   FMUX.Api.FmuxSetWindowState := WlSetWindowState;
   FMUX.Api.FmuxSetWindowTitle := WlSetWindowTitle;
-  FMUX.Api.FmuxSetWindowIcon := WlSetWindowIcon; // partial: ignored (no xdg-toplevel-icon yet)
+  FMUX.Api.FmuxSetWindowIcon := WlSetWindowIcon; // partial: compositor icon requires xdg-toplevel-icon-v1
   FMUX.Api.FmuxActivateWindow := WlActivateWindow; // partial: xdg-activation request (compositor decides)
   FMUX.Api.FmuxWindowBringToFront := WlWindowBringToFront; // partial: xdg-activation request (compositor decides)
   FMUX.Api.FmuxWindowSendToBack := WlWindowSendToBack; // partial: no-op on Wayland
@@ -1284,18 +1744,38 @@ begin
   FMUX.Api.FmuxClipboardHasCustom := WlClipboardHasCustom; // partial: no custom formats yet (always False)
   FMUX.Api.FmuxClipboardGetCustom := WlClipboardGetCustom; // partial: no custom formats yet
 
-  FMUX.Api.FmuxMessageDialog := WlMessageDialog; // partial: FMX's own dialog form, not a native one
+  FMUX.Api.FmuxMessageDialog := WlMessageDialog;
+  FMUX.Api.FmuxFilesDialog := WlFilesDialog;
+  FMUX.Api.FmuxInputQuery := WlInputQuery;
 
-  FMUX.Api.FmuxImeEnterControl := WlImeEnterControl; // partial: no-op (text-input-v3 not used yet)
-  FMUX.Api.FmuxImeExitControl := WlImeExitControl; // partial: no-op
-  FMUX.Api.FmuxImeSetCaretPos := WlImeSetCaretPos; // partial: no-op
+  FMUX.Api.FmuxImeEnterControl := WlImeEnterControl; // partial: FMUX callbacks have no preedit cursor/segment attributes
+  FMUX.Api.FmuxImeExitControl := WlImeExitControl;
+  FMUX.Api.FmuxImeSetCaretPos := WlImeSetCaretPos;
+  FMUX.Api.FmuxBeginDragDrop := WlBeginDragDrop;
+  FMUX.Api.FmuxCreateSharedContext := CreateSharedOpenGLContext;
+  FMUX.Api.FmuxCreateThreadContext := CreateThreadOpenGLContext;
+  FMUX.Api.FmuxMakeCurrentContext := MakeOpenGLContextCurrent;
+  AssignCairoApi;
+  ConfigureWaylandDialogHooks(
+    function: Boolean
+    begin
+      Disp.ProcessEvents(0);
+      CheckSynchronize(0);
+      Result := not Disp.Terminated;
+    end,
+    procedure begin Inc(GExternalModalDepth); end,
+    procedure begin Dec(GExternalModalDepth); end);
 end;
 
 initialization
   FillChar(GVersionInfo, SizeOf(GVersionInfo), 0);
 
 finalization
+  GDragObject := Default(TDragObject);
+  GDragWatch.Free;
+  GDragService := nil;
   FreeAndNil(GModalStack);
+  ShutdownOpenGL;
   WlDisconnect;
 
 end.

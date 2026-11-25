@@ -1,0 +1,74 @@
+object DemoWindow: TDemoWindow
+  Left = 0
+  Top = 0
+  Caption = 'Second form'
+  ClientHeight = 220
+  ClientWidth = 420
+  Position = MainFormCenter
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop, iPhone, iPad]
+  OnClose = WindowClose
+  OnShow = WindowShow
+  DesignerMasterStyle = 0
+  object Content: TLayout
+    Align = Client
+    Padding.Left = 20.000000000000000000
+    Padding.Top = 20.000000000000000000
+    Padding.Right = 20.000000000000000000
+    Padding.Bottom = 20.000000000000000000
+    Size.Width = 420.000000000000000000
+    Size.Height = 220.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object Buttons: TLayout
+      Align = Bottom
+      Position.X = 20.000000000000000000
+      Position.Y = 164.000000000000000000
+      Size.Width = 380.000000000000000000
+      Size.Height = 36.000000000000000000
+      Size.PlatformDefault = False
+      object CancelButton: TButton
+        Align = Right
+        ModalResult = 2
+        Position.X = 42.000000000000000000
+        Size.Width = 110.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        Text = 'Cancel'
+      end
+      object OKButton: TButton
+        Align = Right
+        ModalResult = 1
+        Margins.Right = 8.000000000000000000
+        Position.X = 152.000000000000000000
+        Size.Width = 110.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        Text = 'OK'
+      end
+      object CloseButton: TButton
+        Align = Right
+        Position.X = 270.000000000000000000
+        Size.Width = 110.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        Text = #1047#1072#1082#1088#1099#1090#1100
+        OnClick = CloseButtonClick
+      end
+    end
+    object DescriptionLabel: TLabel
+      Align = Client
+      Margins.Bottom = 16.000000000000000000
+      Size.Width = 380.000000000000000000
+      Size.Height = 128.000000000000000000
+      Size.PlatformDefault = False
+      Text = #1053#1077#1079#1072#1074#1080#1089#1080#1084#1086#1077' '#1086#1082#1085#1086' '#1080#1079' FMX-'#1088#1072#1079#1084#1077#1090#1082#1080'.'
+    end
+  end
+  object SelfCloseTimer: TTimer
+    Enabled = False
+    Interval = 700
+    OnTimer = SelfCloseTimerTimer
+  end
+end

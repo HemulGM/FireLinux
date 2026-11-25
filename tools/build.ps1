@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Builds a Delphi FMX program for Linux64 with FMXWayland (command line, dcclinux64, no PAServer).
 
@@ -9,10 +9,16 @@
   3. Links against a Linux platform SDK: a copy of a Linux system's libraries (see README.md, "Building"; the default is the
      SDK that FMXFastCanvas's tools\make-linux-sdk.ps1 makes from the WSL distribution Ubuntu-26.04). dcclinux64 links
      with LLVM lld; --syslibroot is the SDK, --libpath the folders with libc, crt*.o, libgcc and Delphi's librtlhelper.
-  4. Copies libsk4d.so (Skia, from $(BDS)\Redist\linux64) next to the program.
+  4. With -Skia, copies the optional libsk4d.so runtime next to the program; Cairo needs only system packages.
 
   All output goes to <BuildRoot> (default D:\Work\FMXWayland-build): bin\Linux64\<Config>\<Name>,
   dcu\Linux64\<Config>\<Name>\.
+
+.PARAMETER Skia
+  Copy Delphi's Skia runtime for programs that explicitly use FMX.Skia. The default sample uses Cairo.
+
+.PARAMETER FmxLinux
+  Optional FMX Linux GetIt installation directory containing source\FMUX.Api.pas and lib\Release or lib\Debug.
 
 .EXAMPLE
   .\tools\build.ps1 -Project samples\Hello\Hello.dpr
@@ -25,7 +31,9 @@ param(
   [string[]] $Define = @(),
   [string] $BuildRoot = 'D:\Work\FMXWayland-build',
   [string] $Sdk = 'D:\LinuxSDK\ubuntu-26.04',
-  [string] $Bds = 'C:\Program Files (x86)\Embarcadero\Studio\37.0'
+  [string] $Bds = 'C:\Program Files (x86)\Embarcadero\Studio\37.0',
+  [string] $FmxLinux = '',
+  [switch] $Skia
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,7 +56,12 @@ $OutDir = Join-Path $BuildRoot "bin\Linux64\$Config"
 $DcuDir = Join-Path $BuildRoot "dcu\Linux64\$Config\$Name"
 New-Item -ItemType Directory -Force -Path $GenDir, $OutDir, $DcuDir | Out-Null
 
-& (Join-Path $PSScriptRoot 'gen-fmux-api.ps1') -Bds $Bds -Out (Join-Path $GenDir 'FMUX.Api.pas')
+$fmuxSource = ''
+if ($FmxLinux) {
+  $FmxLinux = (Resolve-Path $FmxLinux).Path
+  $fmuxSource = Join-Path $FmxLinux 'source\FMUX.Api.pas'
+}
+& (Join-Path $PSScriptRoot 'gen-fmux-api.ps1') -Bds $Bds -Source $fmuxSource -Out (Join-Path $GenDir 'FMUX.Api.pas')
 
 $env:BDS = $Bds
 $env:BDSINCLUDE = Join-Path $Bds 'include'
@@ -58,6 +71,7 @@ $env:PATH = "$Bds\bin;$Bds\bin64;$env:PATH"
 $paths = @($GenDir, (Join-Path $Root 'src'), (Join-Path $Root 'src\Protocols'), (Split-Path $ProjectPath -Parent))
 $paths += $SearchPath | ForEach-Object { (Resolve-Path $_).Path }
 $delphiLib = Join-Path $Bds "lib\linux64\$($Config.ToLower())"
+if ($FmxLinux) { $paths += Join-Path $FmxLinux ('lib\' + $Config) }
 $paths += $delphiLib
 # Delphi 13 ships no FMX.Filter.res for Linux64 (FMX.Filter links it); resources are platform-independent, so the
 # Win64 one goes into a folder on the resource path.
@@ -93,5 +107,5 @@ $code = $LASTEXITCODE
 $out | Where-Object { "$_" -notmatch '^(Linker command line:|Embarcadero|Copyright)' } | ForEach-Object { Write-Host "$_" }
 if ($code -ne 0) { throw "dcclinux64 failed ($code)" }
 
-Copy-Item (Join-Path $Bds 'Redist\linux64\libsk4d.so') $OutDir -Force
+if ($Skia) { Copy-Item (Join-Path $Bds 'Redist\linux64\libsk4d.so') $OutDir -Force }
 Write-Host "OK -> $(Join-Path $OutDir $Name)"

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Non-interactive test of samples\Hello on a private headless Weston in WSL, at output scale 1 and 2: the program must
   start, render (its own frame dump and a compositor screenshot are kept), report the buffer size of its window
@@ -28,8 +28,8 @@ foreach ($scale in 1, 2) {
   wsl -d $Distro -u root -- sh (WslPath (Join-Path $PSScriptRoot 'weston-headless.sh')) (WslPath $out) $scale `
     (WslPath $exe) --selftest --quit-after=25 2>&1 | Out-Null
   $log = Get-Content (Join-Path $out 'program.log') -Raw -Encoding UTF8
-  $bw = 700 * $scale
-  $bh = 540 * $scale
+  $bw = 900 * $scale
+  $bh = 700 * $scale
   $checks = [ordered]@{
     "scale $($scale): window created" = $log -match '\[hello\] created'
     "scale $($scale): native buffer ${bw}x${bh}" = $log -match "native: display=[0-9A-F]*[1-9A-F][0-9A-F]* surface=[0-9A-F]*[1-9A-F][0-9A-F]* buffer=${bw}x${bh} scale=$scale"
@@ -42,7 +42,9 @@ foreach ($scale in 1, 2) {
     "scale $($scale): combo drop-down closes" = $log -match 'selftest: drop-down closed True'
     "scale $($scale): second form shown and freed" = $log -match 'selftest: second form shown[\s\S]*selftest: second form freed'
     "scale $($scale): maximize" = $log -match 'selftest: maximized True'
-    "scale $($scale): restore to 700x540" = $log -match 'selftest: restored 700x540'
+    "scale $($scale): restore to 900x700" = $log -match 'selftest: restored 900x700'
+    "scale $($scale): six tabs and embedded PNG/JPEG" = $log -match 'demo: 6 tabs, PNG 256x160, JPEG 256x160'
+    "scale $($scale): image, dialog and platform tabs" = $log -match 'selftest: images tab[\s\S]*selftest: FMX dialog backend[\s\S]*selftest: platform tab'
     "scale $($scale): modal loop ended by a timer (mrRetry)" = $log -match 'selftest: modal result 4'
     "scale $($scale): self-test done" = $log -match 'selftest: done'
   }

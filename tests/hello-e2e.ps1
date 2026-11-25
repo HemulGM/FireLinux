@@ -57,6 +57,13 @@ function Shot([string] $Name, [string] $Title = 'FMXWayland Hello', [int] $Exten
 }
 function LogText { if (Test-Path $logFile) { Get-Content $logFile -Raw -Encoding UTF8 } else { '' } }
 function CountLog([string] $Pattern) { ([regex]::Matches((LogText), $Pattern)).Count }
+function ClickControl($Window, [string] $Name) {
+  $matches = [regex]::Matches((LogText), ('layout ' + [regex]::Escape($Name) + ' (\d+) (\d+)'))
+  if ($matches.Count -eq 0) { throw "No streamed control position for $Name" }
+  $point = $matches[$matches.Count - 1]
+  Invoke-Click $Window ([int]$point.Groups[1].Value) ([int]$point.Groups[2].Value)
+}
+function SwitchTab($Window, [string] $Name) { ClickControl $Window $Name; Start-Sleep -Milliseconds 300 }
 # Waits until the log has more matches of Pattern than ABefore.
 function WaitMore([string] $Pattern, [int] $ABefore, [int] $TimeoutMs = 5000) {
   $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
@@ -92,12 +99,12 @@ try {
   Shot '02-mouse'
 
   # Button: three clicks.
-  for ($i = 0; $i -lt 3; $i++) { Invoke-Click $w 75 213 }
+  for ($i = 0; $i -lt 3; $i++) { ClickControl $w 'ClickButton' }
   Check 'button clicks' (WaitLog 'click 3') ''
 
   # Double click on the button counts as a click too (two presses).
   # Edit: focus and type.
-  Invoke-Click $w 150 258
+  ClickControl $w 'EditBox'
   # Digits and spaces: the same on every keyboard layout (WSLg uses the layout of the Windows session).
   Send-Text '2026 123'
   Check 'keyboard input into TEdit' (WaitLog 'edit "2026 123"') ''
@@ -114,7 +121,7 @@ try {
   Check 'End + typing' (WaitLog 'edit "92026 123"') ''
 
   # Clipboard: FMX -> Windows.
-  Invoke-Click $w 85 353
+  ClickControl $w 'CopyButton'
   Start-Sleep -Milliseconds 1500
   $clip = Get-Clipboard -Raw
   Check 'copy to the clipboard (seen by Windows)' ($clip -eq '92026 123') "(Windows clipboard: '$clip')"
@@ -122,12 +129,12 @@ try {
   # Clipboard: Windows -> FMX.
   Set-Clipboard -Value 'From Windows 42'
   Start-Sleep -Milliseconds 1500
-  Invoke-Click $w 225 353
+  ClickControl $w 'PasteButton'
   Check 'paste from the clipboard (set by Windows)' (WaitLog 'pasted "From Windows 42"') ''
   Shot '04-clipboard'
 
   # Ctrl+A, Ctrl+X in the edit (FMX shortcuts through the keyboard path).
-  Invoke-Click $w 150 258
+  ClickControl $w 'EditBox'
   Send-Key 0x41 @(0x11)
   Send-Key 0x58 @(0x11)
   Check 'Ctrl+A, Ctrl+X in TEdit' (WaitLog 'edit ""') ''
@@ -142,7 +149,7 @@ try {
   Check 'letters (any layout)' ($letters.Length -eq 3) "(typed a, b, c -> '$letters')"
 
   # Mouse wheel over the form.
-  Move-PointerTo $w 600 300
+  Move-PointerTo $w 600 40
   Invoke-Wheel 2
   Invoke-Wheel -1
   Check 'mouse wheel' (WaitLog 'wheel 240') ''
@@ -150,34 +157,37 @@ try {
   # Combo box: the drop-down list is an xdg_popup (a separate window for WSLg: the main one must not be topmost).
   Set-TopWindowTopmost $w $false
   [void](Find-TopWindow 'FMXWayland Hello' 1)
-  Invoke-Click $w 120 303
+  ClickControl $w 'ColorCombo'
   Start-Sleep -Milliseconds 1200
   Shot '05-combo-open' -ExtendBottom 200
   $popupOpen = (LogText) -notmatch 'combo '
-  Invoke-Click $w 120 365
+  Send-Key 0x28
+  Send-Key 0x0D
   Start-Sleep -Milliseconds 800
   Check 'combo box popup: choose an item' (WaitLog 'combo (Green|Blue|Yellow|Purple)') ''
   Shot '06-combo-chosen'
   Set-TopWindowTopmost $w
 
   # Check box.
-  Invoke-Click $w 250 303
+  SwitchTab $w 'ImagesTab'
+  ClickControl $w 'SpinCheck'
   Check 'check box' (WaitLog 'check False') ''
 
   # Second form (non-modal toplevel).
-  Invoke-Click $w 85 403
+  SwitchTab $w 'PlatformTab'
+  ClickControl $w 'SecondButton'
   $w2 = Find-TopWindow 'Second form 1' 10
   Check 'second form appears' ($null -ne $w2) ''
   if ($w2) {
     Set-TopWindowTopmost $w2
     Start-Sleep -Milliseconds 1000
     Shot '07-second-form' 'Second form 1'
-    Invoke-Click $w2 80 95
+    ClickControl $w2 'CloseButton'
     Check 'second form closes with its button' (WaitLog 'second form closed') ''
   }
 
   # Modal form.
-  Invoke-Click $w 225 403
+  ClickControl $w 'ModalButton'
   $w3 = Find-TopWindow 'Modal form' 10
   Check 'modal form appears' ($null -ne $w3) ''
   if ($w3) {
@@ -185,15 +195,16 @@ try {
     Start-Sleep -Milliseconds 1000
     Shot '08-modal' 'Modal form'
     # The main window does not react while the modal form is up.
-    Invoke-Click $w 75 213
+    $beforeTabSwitch = CountLog '\[hello\] tab ControlsTab'
+    ClickControl $w 'ControlsTab'
     Start-Sleep -Milliseconds 500
-    Check 'main window blocked while modal' ((LogText) -notmatch 'click 4') ''
-    Invoke-Click $w3 80 105
+    Check 'main window blocked while modal' ((CountLog '\[hello\] tab ControlsTab') -eq $beforeTabSwitch) ''
+    ClickControl $w3 'OKButton'
     Check 'modal result OK' (WaitLog 'modal result 1') ''
   }
 
   # Second form closed by the compositor (WM_CLOSE -> WSLg -> xdg_toplevel.close -> FMX Close).
-  Invoke-Click $w 85 403
+  ClickControl $w 'SecondButton'
   $w4 = Find-TopWindow 'Second form 2' 10
   Check 'another second form appears' ($null -ne $w4) ''
   if ($w4) {
@@ -206,7 +217,7 @@ try {
   }
 
   # Client-side decorations (WSLg has no server-side ones): the close button of a third second form.
-  Invoke-Click $w 85 403
+  ClickControl $w 'SecondButton'
   $w5 = Find-TopWindow 'Second form 3' 10
   if ($w5) {
     Set-TopWindowTopmost $w5
@@ -225,28 +236,28 @@ try {
   Check 'title bar maximize button' (WaitMore 'resize \d+x\d+ state 2' $n) ''
   Start-Sleep -Milliseconds 1000
   $wm = Find-TopWindow 'FMXWayland Hello' 5
-  $n = CountLog 'resize 700x540 state 0'
-  Invoke-Click $wm 365 403
-  Check 'restore after the title bar maximize' (WaitMore 'resize 700x540 state 0' $n) ''
+  $n = CountLog 'resize 900x700 state 0'
+  ClickControl $wm 'MaximizeButton'
+  Check 'restore after the title bar maximize' (WaitMore 'resize 900x700 state 0' $n) ''
   Start-Sleep -Milliseconds 1000
   $w = Find-TopWindow 'FMXWayland Hello' 5
 
   # Maximize (xdg_toplevel.set_maximized -> configure with the new size -> FMX resize) and back.
   $n = CountLog 'resize \d+x\d+ state 2'
-  Invoke-Click $w 365 403
+  ClickControl $w 'MaximizeButton'
   Check 'maximize: the compositor resizes the window' (WaitMore 'resize \d+x\d+ state 2' $n) ''
   Start-Sleep -Milliseconds 1000
   $wm = Find-TopWindow 'FMXWayland Hello' 5
   Check 'maximized window is larger' ($wm.Width -gt 1000) "($($wm.Width)x$($wm.Height))"
   Shot '09-maximized'
-  $n = CountLog 'resize 700x540 state 0'
-  Invoke-Click $wm 365 403
-  Check 'restore: back to 700x540' (WaitMore 'resize 700x540 state 0' $n) ''
+  $n = CountLog 'resize 900x700 state 0'
+  ClickControl $wm 'MaximizeButton'
+  Check 'restore: back to 900x700' (WaitMore 'resize 900x700 state 0' $n) ''
   Start-Sleep -Milliseconds 1000
   $w = Find-TopWindow 'FMXWayland Hello' 5
 
   # Resize from code (FMX ClientWidth/ClientHeight -> new buffer size).
-  Invoke-Click $w 505 403
+  ClickControl $w 'ResizeButton'
   Check 'resize from code' (WaitLog 'resized by code to 760x560') ''
   Start-Sleep -Milliseconds 1000
   $w = Find-TopWindow 'FMXWayland Hello' 5
