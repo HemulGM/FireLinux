@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Generates FMUX.Api.pas for FMXWayland from the local Delphi installation.
 
@@ -7,15 +7,16 @@
   library through the function-pointer variables of the unit FMUX.Api. The precompiled FMX units accept a different
   FMUX.Api with the same interface section, so FMXWayland generates one:
 
-  - interface: copied verbatim from $(BDS)\source\fmx\FMUX.Api.pas of the installed Delphi (it is Embarcadero's code:
-    the generated file is never committed, see .gitignore);
+  - interface: copied verbatim from the FMUX.Api.pas of the installed Delphi (it is Embarcadero's code: the generated
+    file is never committed, see .gitignore): $(BDS)\source\fmx in Delphi 13.0, the GetIt package of FMX for Linux in
+    later releases; tools\delphi-env.ps1 takes the one next to the FMUX.Api.dcu the build uses (or -Source);
   - implementation: ours. Every function-pointer variable first gets a generated stub with the declared signature that
     logs its name once and returns zero/nil/False (Default(T)); then FMXWayland.Fmux.AssignFmuxApi replaces the
     implemented ones. The helper routines declared in the interface (FmuxStateToShiftState, MsgDlgButtonsToButtons, ...)
     come from src\FMXWayland.FmuxApi.inc. No libfmux resource and no dlopen of libfmux.
 
-  The script prints how many of the function pointers FMXWayland.Fmux implements (the assignments
-  "FMUX.Api.<Name> := ..." in src\FMXWayland.Fmux.pas) and, with -StatusFile, writes the list as Markdown.
+  The script prints how many of the function pointers FMXWayland implements (the assignments "FMUX.Api.<Name> := ..."
+  in src\FMXWayland.Fmux.pas and src\FMXWayland.Cairo.pas) and, with -StatusFile, writes the list as Markdown.
 
 .PARAMETER Source
   Optional explicit FMUX.Api.pas source path, for installations where FMX Linux is supplied through GetIt.
@@ -25,17 +26,27 @@
   .\tools\gen-fmux-api.ps1 -Out D:\Work\FMXWayland-build\gen\FMUX.Api.pas -StatusFile D:\Work\FMXWayland-build\status.md
 #>
 param(
-  [string] $Bds = 'C:\Program Files (x86)\Embarcadero\Studio\37.0',
+  # Delphi's folder; '' = from the registry (RootDir of 37.0).
+  [string] $Bds = '',
   [string] $Out = 'D:\Work\FMXWayland-build\gen\FMUX.Api.pas',
   [string] $StatusFile = '',
-  [string] $Source = ''
+  # FMUX.Api.pas to take the interface from; '' = found by tools\delphi-env.ps1 (Find-FmxLinux).
+  [string] $Source = '',
+  [ValidateSet('Release', 'Debug')] [string] $Config = 'Release'
 )
 
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path $PSScriptRoot -Parent
-if (-not $Source) { $Source = Join-Path $Bds 'source\fmx\FMUX.Api.pas' }
-if (-not (Test-Path $Source)) { throw "No $Source (is Delphi with the FMX Linux sources installed?)" }
+. (Join-Path $PSScriptRoot 'delphi-env.ps1')
+$DelphiEnv = Get-DelphiEnv $Bds
+$Bds = $DelphiEnv.Bds
+if (-not $Source) {
+  $fmx = Find-FmxLinux $DelphiEnv $Config
+  $Source = $fmx.Source
+  Write-Host "FMX for Linux: units in $($fmx.DcuDir), FMUX.Api from $Source"
+}
+if (-not (Test-Path $Source)) { throw "No $Source" }
 
 $lines = [IO.File]::ReadAllLines($Source)
 $implIndex = -1
@@ -65,16 +76,16 @@ foreach ($m in $rx.Matches($interfaceText)) {
 }
 if ($pointers.Count -lt 100) { throw "Found only $($pointers.Count) function pointers in $Source (format changed?)" }
 
-# What FMXWayland.Fmux implements.
+# What FMXWayland implements: the assignments in FMXWayland.Fmux and FMXWayland.Cairo (FMX's cairo canvas).
 $implemented = @{}
-foreach ($fmuxUnit in @((Join-Path $Root 'src\FMXWayland.Fmux.pas'), (Join-Path $Root 'src\FMXWayland.Cairo.pas'))) {
+foreach ($fmuxUnit in (Join-Path $Root 'src\FMXWayland.Fmux.pas'), (Join-Path $Root 'src\FMXWayland.Cairo.pas')) {
   if (-not (Test-Path $fmuxUnit)) { continue }
   foreach ($m in [regex]::Matches([IO.File]::ReadAllText($fmuxUnit), '(?m)^\s*FMUX\.Api\.(\w+)\s*:=[^;]*;[ \t]*(?://[ \t]*partial:[ \t]*(?<note>[^\r\n]*))?')) {
     $implemented[$m.Groups[1].Value] = if ($m.Groups['note'].Success) { 'partial: ' + $m.Groups['note'].Value.Trim() } else { 'implemented' }
   }
 }
 $unknown = @($implemented.Keys | Where-Object { $n = $_; -not ($pointers | Where-Object { $_.Name -eq $n }) })
-if ($unknown.Count -gt 0) { throw "FMXWayland.Fmux assigns pointers that this FMUX.Api does not declare: $($unknown -join ', ')" }
+if ($unknown.Count -gt 0) { throw "FMXWayland assigns pointers that this FMUX.Api does not declare: $($unknown -join ', ')" }
 
 $sb = New-Object Text.StringBuilder
 function Add([string] $s = '') { [void]$sb.Append($s).Append("`r`n") }
@@ -88,7 +99,8 @@ Add ''
 Add '// ---- FMXWayland implementation ----'
 Add ''
 Add 'uses'
-Add '  FMXWayland.Log, FMXWayland.Fmux;'
+Add '  // FMXWayland.FmuxLoad before FMXWayland.Fmux: it calls LoadLib before FMX initializes (see the unit).'
+Add '  FMXWayland.Log, FMXWayland.FmuxLoad, FMXWayland.Fmux;'
 Add ''
 Add '{$I FMXWayland.FmuxApi.inc}'
 Add ''
@@ -131,7 +143,7 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 [IO.File]::WriteAllText($Out, $sb.ToString(), (New-Object Text.UTF8Encoding $true))
 
 $implCount = @($pointers | Where-Object { $implemented.ContainsKey($_.Name) }).Count
-Write-Host "FMUX.Api.pas -> $Out ($($pointers.Count) function pointers, $implCount implemented by FMXWayland.Fmux)"
+Write-Host "FMUX.Api.pas -> $Out ($($pointers.Count) function pointers, $implCount implemented by FMXWayland)"
 
 if ($StatusFile) {
   $st = New-Object Text.StringBuilder
@@ -140,8 +152,8 @@ if ($StatusFile) {
   [void]$st.Append("*partial*: assigned, but only part of it is done (the note says what); *stub*: the generated stub (logs once,`n")
   [void]$st.Append("returns zero/nil/False).`n`n")
   [void]$st.Append("Generated with ``.\tools\gen-fmux-api.ps1 -StatusFile docs\FMUX-STATUS.md`` (the notes come from the`n")
-  [void]$st.Append("``// partial:`` comments in ``src\FMXWayland.Fmux.pas``); a stub that FMX calls logs ``<name> is not implemented```n")
-  [void]$st.Append("once at run time.`n`n")
+  [void]$st.Append("``// partial:`` comments in ``src\FMXWayland.Fmux.pas`` and ``src\FMXWayland.Cairo.pas``); a stub that FMX`n")
+  [void]$st.Append("calls logs ``<name> is not implemented`` once at run time.`n`n")
   [void]$st.Append("``TMainMenu`` is implemented by the ``IFMXMenuService`` adapter in ``FMXWayland.Menus``; the legacy FMUX menu slots`n")
   [void]$st.Append("below remain unused stubs. See README.md, 'Main menus on Wayland'.`n`n")
   [void]$st.Append("| Function | FMXWayland |`n|---|---|`n")

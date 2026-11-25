@@ -19,8 +19,11 @@ type
     hotspot_y: UInt32;
     delay: UInt32;
   end;
+
   Pwl_cursor_image = ^Twl_cursor_image;
+
   TWlCursorImageArray = array[0..1023] of Pwl_cursor_image;
+
   PWlCursorImageArray = ^TWlCursorImageArray;
 
   /// <summary>struct wl_cursor.</summary>
@@ -29,6 +32,7 @@ type
     images: PWlCursorImageArray;
     name: PAnsiChar;
   end;
+
   Pwl_cursor = ^Twl_cursor;
 
   /// <summary>Opaque struct wl_cursor_theme.</summary>
@@ -74,3 +78,4 @@ begin
 end;
 
 end.
+

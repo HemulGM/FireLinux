@@ -37,10 +37,13 @@ type
   /// <summary>xdg_toplevel_icon_manager_v1: interface to manage toplevel icons</summary>
   Txdg_toplevel_icon_manager_v1 = record
   end;
+
   Pxdg_toplevel_icon_manager_v1 = ^Txdg_toplevel_icon_manager_v1;
   /// <summary>xdg_toplevel_icon_v1: a toplevel window icon</summary>
+
   Txdg_toplevel_icon_v1 = record
   end;
+
   Pxdg_toplevel_icon_v1 = ^Txdg_toplevel_icon_v1;
 
 const
@@ -70,6 +73,7 @@ type
     /// <summary>all information has been sent</summary>
     done: procedure(AData: Pointer; AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1); cdecl;
   end;
+
   Pxdg_toplevel_icon_manager_v1_listener = ^Txdg_toplevel_icon_manager_v1_listener;
 
 var
@@ -77,24 +81,35 @@ var
   xdg_toplevel_icon_v1_interface: Twl_interface;
 
 function xdg_toplevel_icon_manager_v1_add_listener(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1; AListener: Pxdg_toplevel_icon_manager_v1_listener; AData: Pointer): Integer;
+
 procedure xdg_toplevel_icon_manager_v1_set_user_data(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1; AUserData: Pointer);
+
 function xdg_toplevel_icon_manager_v1_get_user_data(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1): Pointer;
+
 function xdg_toplevel_icon_manager_v1_get_version(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1): UInt32;
 /// <summary>xdg_toplevel_icon_manager_v1.destroy: destroy the toplevel icon manager</summary>
+
 procedure xdg_toplevel_icon_manager_v1_destroy(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1);
 /// <summary>xdg_toplevel_icon_manager_v1.create_icon: create a new icon instance</summary>
+
 function xdg_toplevel_icon_manager_v1_create_icon(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1): Pxdg_toplevel_icon_v1;
 /// <summary>xdg_toplevel_icon_manager_v1.set_icon: set an icon on a toplevel window</summary>
+
 procedure xdg_toplevel_icon_manager_v1_set_icon(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1; AToplevel: Pxdg_toplevel; AIcon: Pxdg_toplevel_icon_v1);
 
 procedure xdg_toplevel_icon_v1_set_user_data(AXdgToplevelIconV1: Pxdg_toplevel_icon_v1; AUserData: Pointer);
+
 function xdg_toplevel_icon_v1_get_user_data(AXdgToplevelIconV1: Pxdg_toplevel_icon_v1): Pointer;
+
 function xdg_toplevel_icon_v1_get_version(AXdgToplevelIconV1: Pxdg_toplevel_icon_v1): UInt32;
 /// <summary>xdg_toplevel_icon_v1.destroy: destroy the icon object</summary>
+
 procedure xdg_toplevel_icon_v1_destroy(AXdgToplevelIconV1: Pxdg_toplevel_icon_v1);
 /// <summary>xdg_toplevel_icon_v1.set_name: set an icon name</summary>
+
 procedure xdg_toplevel_icon_v1_set_name(AXdgToplevelIconV1: Pxdg_toplevel_icon_v1; AIconName: PAnsiChar);
 /// <summary>xdg_toplevel_icon_v1.add_buffer: add icon data from a pixel buffer</summary>
+
 procedure xdg_toplevel_icon_v1_add_buffer(AXdgToplevelIconV1: Pxdg_toplevel_icon_v1; ABuffer: Pwl_buffer; AScale: Int32);
 
 implementation
@@ -184,7 +199,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pxdg_toplevel_icon_v1(WlProxyMarshalFlags(Pwl_proxy(AXdgToplevelIconManagerV1), XDG_TOPLEVEL_ICON_MANAGER_V1_CREATE_ICON_OPCODE, @xdg_toplevel_icon_v1_interface,
-    wl_proxy_get_version(Pwl_proxy(AXdgToplevelIconManagerV1)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AXdgToplevelIconManagerV1)), 0, @LArgs[0]));
 end;
 
 procedure xdg_toplevel_icon_manager_v1_set_icon(AXdgToplevelIconManagerV1: Pxdg_toplevel_icon_manager_v1; AToplevel: Pxdg_toplevel; AIcon: Pxdg_toplevel_icon_v1);
@@ -241,4 +256,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

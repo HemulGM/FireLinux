@@ -5,8 +5,8 @@ All 186 function pointers of `FMUX.Api` (RAD Studio 37.0). *implemented*: does w
 returns zero/nil/False).
 
 Generated with `.\tools\gen-fmux-api.ps1 -StatusFile docs\FMUX-STATUS.md` (the notes come from the
-`// partial:` comments in `src\FMXWayland.Fmux.pas`); a stub that FMX calls logs `<name> is not implemented`
-once at run time.
+`// partial:` comments in `src\FMXWayland.Fmux.pas` and `src\FMXWayland.Cairo.pas`); a stub that FMX
+calls logs `<name> is not implemented` once at run time.
 
 `TMainMenu` is implemented by the `IFMXMenuService` adapter in `FMXWayland.Menus`; the legacy FMUX menu slots
 below remain unused stubs. See README.md, 'Main menus on Wayland'.
@@ -23,7 +23,7 @@ below remain unused stubs. See README.md, 'Main menus on Wayland'.
 | FmuxSetMainWindow | implemented |
 | FmuxSetWindowState | implemented |
 | FmuxSetWindowTitle | implemented |
-| FmuxSetWindowIcon | partial: ignored (no xdg-toplevel-icon yet) |
+| FmuxSetWindowIcon | partial: compositor icon requires xdg-toplevel-icon-v1 |
 | FmuxShowWindow | implemented |
 | FmuxActivateWindow | partial: xdg-activation request (compositor decides) |
 | FmuxWindowBringToFront | partial: xdg-activation request (compositor decides) |
@@ -94,8 +94,8 @@ below remain unused stubs. See README.md, 'Main menus on Wayland'.
 | FmuxLayoutToPath | implemented |
 | FmuxAddCustomFont | stub |
 | FmuxAddCustomFontFromData | stub |
-| FmuxGetFontCount | implemented |
-| FmuxGetFontName | implemented |
+| FmuxGetFontCount | partial: the system's font families |
+| FmuxGetFontName | partial: names of FmuxGetFontCount (custom fonts: not yet) |
 | FmuxSetLog | partial: FMXWayland logs to stderr itself (FMXWAYLAND_LOG) |
 | FmuxCreateSharedContext | implemented |
 | FmuxCreateThreadContext | implemented |
@@ -107,8 +107,8 @@ below remain unused stubs. See README.md, 'Main menus on Wayland'.
 | FmuxMenuAddItem | stub |
 | FmuxSetSubmenu | stub |
 | FmuxUpdateMenuItem | stub |
-| FmuxMessageDialog | implemented |
-| FmuxInputQuery | implemented |
+| FmuxMessageDialog | partial: FMX's own dialog form (or the dialog backend's) |
+| FmuxInputQuery | partial: the dialog backend's (FMX uses its own form anyway) |
 | FmuxFilesDialog | implemented |
 | FmuxClipboardHasText | implemented |
 | FmuxClipboardGetText | implemented |

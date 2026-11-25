@@ -223,6 +223,7 @@ type
     procedure Log(const Text: string);
     procedure DialogResult(const Text: string);
     procedure TraceLayout;
+    procedure AppException(Sender: TObject; E: Exception);
   end;
 
 var
@@ -307,13 +308,22 @@ begin
     QuitTimer.Interval := QuitAfter * 1000;
     QuitTimer.Enabled := True;
   end;
+  Application.OnException := AppException;
   Log('created');
+  Log('canvas ' + TCanvasManager.DefaultCanvas.ClassName);
   Log(Format('demo: %d tabs, PNG %dx%d, JPEG %dx%d', [DemoTabs.TabCount,
         PngImage.Bitmap.Width, PngImage.Bitmap.Height, JpegImage.Bitmap.Width, JpegImage.Bitmap.Height]));
 end;
 
+procedure THelloForm.AppException(Sender: TObject; E: Exception);
+begin
+  Log(Format('exception %s: %s (at %p)', [E.ClassName, E.Message, ExceptAddr]));
+  Application.ShowException(E);
+end;
+
 procedure THelloForm.FormDestroy(Sender: TObject);
 begin
+  Application.OnException := nil;
   FreeAndNil(FSelfSecond);
   Log('destroyed');
 end;

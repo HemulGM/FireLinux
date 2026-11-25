@@ -1,0 +1,16 @@
+object HelloBackendProbe: THelloBackendProbe
+  Left = 0
+  Top = 0
+  Caption = 'FMXWayland Hello'
+  ClientHeight = 540
+  ClientWidth = 700
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  OnMouseMove = FormMouseMove
+  OnMouseWheel = FormMouseWheel
+  DesignerMasterStyle = 0
+end

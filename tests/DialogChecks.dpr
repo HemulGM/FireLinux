@@ -126,22 +126,20 @@ begin
     Check(Save.Execute and (Save.FileName = '/tmp/новый.txt'), 'Portal save');
     Open.Title := 'fast'; Open.Options := Open.Options - [TOpenOption.ofAllowMultiSelect];
     Check(Open.Execute, 'Response before method reply');
-    Open.Title := 'error'; Raised := False;
-    try Open.Execute; except on E: EDBusError do Raised := True; end;
-    Check(Raised, 'Portal error response');
-    Open.Title := 'invalid'; Raised := False;
-    try Open.Execute; except on E: EDBusError do Raised := True; end;
-    Check(Raised, 'Remote URI rejected');
+    Open.Title := 'error';
+    Check(not Open.Execute, 'Portal response 2 cancels the request');
+    Open.Title := 'invalid';
+    Check(not Open.Execute, 'Remote URI rejected');
     Index := 1; Buffer[0] := #0; Raised := False;
     try FmuxFilesDialog('single', 'Text|*.txt|All|*.*', '', '/tmp/каталог', @Buffer[0],
       Length(Buffer), Index, 1); except on E: EArgumentException do Raised := True; end;
     Check(Raised and (Buffer[0] = #0) and (Index = 1), 'No filename truncation');
     Request := Default(TWaylandFileDialogRequest); Request.Kind := TWaylandFileDialogKind.SelectFolder;
     Request.Title := 'folder'; Index := 1;
-    Check(PortalFileDialog(Request, Files, Index, nil) and (Files[0] = '/tmp/каталог'), 'Portal folder');
+    Check(PortalFileDialog(Request, '', Files, Index, nil) and (Files[0] = '/tmp/каталог'), 'Portal folder');
     Request.Kind := TWaylandFileDialogKind.OpenFile; Request.Title := 'abandon';
     Watch := TStopwatch.StartNew; Raised := False;
-    try PortalFileDialog(Request, Files, Index, function: Boolean
+    try PortalFileDialog(Request, '', Files, Index, function(const Fd, TimeoutMs: Integer): Boolean
       begin Result := Watch.ElapsedMilliseconds < 500; end);
     except on E: EDBusCancelled do Raised := True; end;
     Check(Raised, 'Pending request cancellation');
@@ -202,7 +200,7 @@ begin
       Request := Default(TWaylandFileDialogRequest); Request.Title := 'FMXWayland portal smoke test'; Index := 1;
       Started := TStopwatch.StartNew;
       try
-        PortalFileDialog(Request, Files, Index, function: Boolean
+        PortalFileDialog(Request, '', Files, Index, function(const Fd, TimeoutMs: Integer): Boolean
           begin Application.ProcessMessages; Result := Started.ElapsedMilliseconds < 1500; end);
       except on E: EDBusCancelled do Writeln('Real portal opened and cancelled cleanly'); end;
     end

@@ -41,10 +41,13 @@ type
   /// <summary>zwp_text_input_v3: text input</summary>
   Tzwp_text_input_v3 = record
   end;
+
   Pzwp_text_input_v3 = ^Tzwp_text_input_v3;
   /// <summary>zwp_text_input_manager_v3: text input manager</summary>
+
   Tzwp_text_input_manager_v3 = record
   end;
+
   Pzwp_text_input_manager_v3 = ^Tzwp_text_input_manager_v3;
 
 const
@@ -121,6 +124,7 @@ type
     /// <summary>apply changes</summary>
     done: procedure(AData: Pointer; AZwpTextInputV3: Pzwp_text_input_v3; ASerial: UInt32); cdecl;
   end;
+
   Pzwp_text_input_v3_listener = ^Tzwp_text_input_v3_listener;
 
 var
@@ -128,32 +132,47 @@ var
   zwp_text_input_manager_v3_interface: Twl_interface;
 
 function zwp_text_input_v3_add_listener(AZwpTextInputV3: Pzwp_text_input_v3; AListener: Pzwp_text_input_v3_listener; AData: Pointer): Integer;
+
 procedure zwp_text_input_v3_set_user_data(AZwpTextInputV3: Pzwp_text_input_v3; AUserData: Pointer);
+
 function zwp_text_input_v3_get_user_data(AZwpTextInputV3: Pzwp_text_input_v3): Pointer;
+
 function zwp_text_input_v3_get_version(AZwpTextInputV3: Pzwp_text_input_v3): UInt32;
 /// <summary>zwp_text_input_v3.destroy: Destroy the wp_text_input</summary>
+
 procedure zwp_text_input_v3_destroy(AZwpTextInputV3: Pzwp_text_input_v3);
 /// <summary>zwp_text_input_v3.enable: Request text input to be enabled</summary>
+
 procedure zwp_text_input_v3_enable(AZwpTextInputV3: Pzwp_text_input_v3);
 /// <summary>zwp_text_input_v3.disable: Disable text input on a surface</summary>
+
 procedure zwp_text_input_v3_disable(AZwpTextInputV3: Pzwp_text_input_v3);
 /// <summary>zwp_text_input_v3.set_surrounding_text: sets the surrounding text</summary>
+
 procedure zwp_text_input_v3_set_surrounding_text(AZwpTextInputV3: Pzwp_text_input_v3; AText: PAnsiChar; ACursor: Int32; AAnchor: Int32);
 /// <summary>zwp_text_input_v3.set_text_change_cause: indicates the cause of surrounding text change</summary>
+
 procedure zwp_text_input_v3_set_text_change_cause(AZwpTextInputV3: Pzwp_text_input_v3; ACause: UInt32);
 /// <summary>zwp_text_input_v3.set_content_type: set content purpose and hint</summary>
+
 procedure zwp_text_input_v3_set_content_type(AZwpTextInputV3: Pzwp_text_input_v3; AHint: UInt32; APurpose: UInt32);
 /// <summary>zwp_text_input_v3.set_cursor_rectangle: set cursor position</summary>
+
 procedure zwp_text_input_v3_set_cursor_rectangle(AZwpTextInputV3: Pzwp_text_input_v3; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 /// <summary>zwp_text_input_v3.commit: commit state</summary>
+
 procedure zwp_text_input_v3_commit(AZwpTextInputV3: Pzwp_text_input_v3);
 
 procedure zwp_text_input_manager_v3_set_user_data(AZwpTextInputManagerV3: Pzwp_text_input_manager_v3; AUserData: Pointer);
+
 function zwp_text_input_manager_v3_get_user_data(AZwpTextInputManagerV3: Pzwp_text_input_manager_v3): Pointer;
+
 function zwp_text_input_manager_v3_get_version(AZwpTextInputManagerV3: Pzwp_text_input_manager_v3): UInt32;
 /// <summary>zwp_text_input_manager_v3.destroy: Destroy the wp_text_input_manager</summary>
+
 procedure zwp_text_input_manager_v3_destroy(AZwpTextInputManagerV3: Pzwp_text_input_manager_v3);
 /// <summary>zwp_text_input_manager_v3.get_text_input: create a new text input object</summary>
+
 function zwp_text_input_manager_v3_get_text_input(AZwpTextInputManagerV3: Pzwp_text_input_manager_v3; ASeat: Pwl_seat): Pzwp_text_input_v3;
 
 implementation
@@ -357,9 +376,11 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASeat;
   Result := Pzwp_text_input_v3(WlProxyMarshalFlags(Pwl_proxy(AZwpTextInputManagerV3), ZWP_TEXT_INPUT_MANAGER_V3_GET_TEXT_INPUT_OPCODE, @zwp_text_input_v3_interface,
-    wl_proxy_get_version(Pwl_proxy(AZwpTextInputManagerV3)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AZwpTextInputManagerV3)), 0, @LArgs[0]));
 end;
 
 initialization
   InitInterfaces;
+
 end.
+

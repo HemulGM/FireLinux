@@ -36,10 +36,13 @@ type
   /// <summary>wp_fractional_scale_manager_v1: fractional surface scale information</summary>
   Twp_fractional_scale_manager_v1 = record
   end;
+
   Pwp_fractional_scale_manager_v1 = ^Twp_fractional_scale_manager_v1;
   /// <summary>wp_fractional_scale_v1: fractional scale interface to a wl_surface</summary>
+
   Twp_fractional_scale_v1 = record
   end;
+
   Pwp_fractional_scale_v1 = ^Twp_fractional_scale_v1;
 
 const
@@ -58,6 +61,7 @@ type
     /// <summary>notify of new preferred scale</summary>
     preferred_scale: procedure(AData: Pointer; AWpFractionalScaleV1: Pwp_fractional_scale_v1; AScale: UInt32); cdecl;
   end;
+
   Pwp_fractional_scale_v1_listener = ^Twp_fractional_scale_v1_listener;
 
 var
@@ -65,18 +69,26 @@ var
   wp_fractional_scale_v1_interface: Twl_interface;
 
 procedure wp_fractional_scale_manager_v1_set_user_data(AWpFractionalScaleManagerV1: Pwp_fractional_scale_manager_v1; AUserData: Pointer);
+
 function wp_fractional_scale_manager_v1_get_user_data(AWpFractionalScaleManagerV1: Pwp_fractional_scale_manager_v1): Pointer;
+
 function wp_fractional_scale_manager_v1_get_version(AWpFractionalScaleManagerV1: Pwp_fractional_scale_manager_v1): UInt32;
 /// <summary>wp_fractional_scale_manager_v1.destroy: unbind the fractional surface scale interface</summary>
+
 procedure wp_fractional_scale_manager_v1_destroy(AWpFractionalScaleManagerV1: Pwp_fractional_scale_manager_v1);
 /// <summary>wp_fractional_scale_manager_v1.get_fractional_scale: extend surface interface for scale information</summary>
+
 function wp_fractional_scale_manager_v1_get_fractional_scale(AWpFractionalScaleManagerV1: Pwp_fractional_scale_manager_v1; ASurface: Pwl_surface): Pwp_fractional_scale_v1;
 
 function wp_fractional_scale_v1_add_listener(AWpFractionalScaleV1: Pwp_fractional_scale_v1; AListener: Pwp_fractional_scale_v1_listener; AData: Pointer): Integer;
+
 procedure wp_fractional_scale_v1_set_user_data(AWpFractionalScaleV1: Pwp_fractional_scale_v1; AUserData: Pointer);
+
 function wp_fractional_scale_v1_get_user_data(AWpFractionalScaleV1: Pwp_fractional_scale_v1): Pointer;
+
 function wp_fractional_scale_v1_get_version(AWpFractionalScaleV1: Pwp_fractional_scale_v1): UInt32;
 /// <summary>wp_fractional_scale_v1.destroy: remove surface scale information for surface</summary>
+
 procedure wp_fractional_scale_v1_destroy(AWpFractionalScaleV1: Pwp_fractional_scale_v1);
 
 implementation
@@ -148,7 +160,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASurface;
   Result := Pwp_fractional_scale_v1(WlProxyMarshalFlags(Pwl_proxy(AWpFractionalScaleManagerV1), WP_FRACTIONAL_SCALE_MANAGER_V1_GET_FRACTIONAL_SCALE_OPCODE, @wp_fractional_scale_v1_interface,
-    wl_proxy_get_version(Pwl_proxy(AWpFractionalScaleManagerV1)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWpFractionalScaleManagerV1)), 0, @LArgs[0]));
 end;
 
 function wp_fractional_scale_v1_add_listener(AWpFractionalScaleV1: Pwp_fractional_scale_v1; AListener: Pwp_fractional_scale_v1_listener; AData: Pointer): Integer;
@@ -181,4 +193,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

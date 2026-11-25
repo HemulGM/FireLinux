@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Pre-build event for Delphi IDE/MSBuild Linux64 projects using FMXWayland.
 .DESCRIPTION
@@ -17,12 +17,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path (Join-Path $Bds 'bin\dcclinux64.exe'))) { throw "No Linux64 compiler in $Bds" }
-$source = Join-Path $Bds 'source\fmx\FMUX.Api.pas'
-if ($FmxLinux) { $source = Join-Path $FmxLinux 'source\FMUX.Api.pas' }
-if (-not (Test-Path $source)) { throw "No $source; set the FMX Linux GetIt directory in the pre-build event" }
+. (Join-Path $PSScriptRoot 'delphi-env.ps1')
+$fmux = Find-FmxLinux (Get-DelphiEnv $Bds) $Config $FmxLinux
 
 New-Item -ItemType Directory -Force -Path $GenDir, $OutputDir | Out-Null
-& (Join-Path $PSScriptRoot 'gen-fmux-api.ps1') -Bds $Bds -Source $source -Out (Join-Path $GenDir 'FMUX.Api.pas')
+& (Join-Path $PSScriptRoot 'gen-fmux-api.ps1') -Bds $Bds -Source $fmux.Source -Config $Config -Out (Join-Path $GenDir 'FMUX.Api.pas')
 
 $resource = Join-Path $Bds "lib\linux64\$Config\FMX.Filter.res"
 if (-not (Test-Path $resource)) { $resource = Join-Path $Bds "lib\win64\$Config\FMX.Filter.res" }

@@ -12,17 +12,23 @@ type
   /// <summary>Opaque struct wl_proxy.</summary>
   Twl_proxy = record
   end;
+
   Pwl_proxy = ^Twl_proxy;
   /// <summary>Opaque struct wl_display (also a wl_proxy).</summary>
+
   Twl_display = record
   end;
+
   Pwl_display = ^Twl_display;
   /// <summary>Opaque struct wl_event_queue.</summary>
+
   Twl_event_queue = record
   end;
+
   Pwl_event_queue = ^Twl_event_queue;
 
   Pwl_interface = ^Twl_interface;
+
   PPwl_interface = ^Pwl_interface;
 
   /// <summary>struct wl_message: a request or an event of an interface.</summary>
@@ -31,6 +37,7 @@ type
     signature: PAnsiChar;
     types: PPwl_interface;
   end;
+
   Pwl_message = ^Twl_message;
 
   /// <summary>struct wl_interface: the protocol description of an interface.</summary>
@@ -49,6 +56,7 @@ type
     alloc: NativeUInt;
     data: Pointer;
   end;
+
   Pwl_array = ^Twl_array;
 
   /// <summary>wl_fixed_t: signed 24.8 fixed-point number.</summary>
@@ -57,16 +65,26 @@ type
   /// <summary>union wl_argument (8 bytes).</summary>
   Twl_argument = record
     case Integer of
-      0: (i: Int32);
-      1: (u: UInt32);
-      2: (f: Twl_fixed);
-      3: (s: PAnsiChar);
-      4: (o: Pointer);
-      5: (n: UInt32);
-      6: (a: Pwl_array);
-      7: (h: Int32);
-      8: (raw: UInt64);
+      0:
+        (i: Int32);
+      1:
+        (u: UInt32);
+      2:
+        (f: Twl_fixed);
+      3:
+        (s: PAnsiChar);
+      4:
+        (o: Pointer);
+      5:
+        (n: UInt32);
+      6:
+        (a: Pwl_array);
+      7:
+        (h: Int32);
+      8:
+        (raw: UInt64);
   end;
+
   Pwl_argument = ^Twl_argument;
 
 const
@@ -88,15 +106,11 @@ var
   wl_display_read_events: function(ADisplay: Pwl_display): Integer; cdecl;
   wl_display_cancel_read: procedure(ADisplay: Pwl_display); cdecl;
   wl_display_get_error: function(ADisplay: Pwl_display): Integer; cdecl;
-  wl_display_get_protocol_error: function(ADisplay: Pwl_display; var AInterface: Pwl_interface;
-    var AId: UInt32): UInt32; cdecl;
+  wl_display_get_protocol_error: function(ADisplay: Pwl_display; var AInterface: Pwl_interface; var AId: UInt32): UInt32; cdecl;
   wl_display_create_queue: function(ADisplay: Pwl_display): Pwl_event_queue; cdecl;
   wl_event_queue_destroy: procedure(AQueue: Pwl_event_queue); cdecl;
-
-  wl_proxy_marshal_array_flags: function(AProxy: Pwl_proxy; AOpcode: UInt32; AInterface: Pwl_interface;
-    AVersion: UInt32; AFlags: UInt32; AArgs: Pwl_argument): Pwl_proxy; cdecl;
-  wl_proxy_marshal_array_constructor_versioned: function(AProxy: Pwl_proxy; AOpcode: UInt32; AArgs: Pwl_argument;
-    AInterface: Pwl_interface; AVersion: UInt32): Pwl_proxy; cdecl;
+  wl_proxy_marshal_array_flags: function(AProxy: Pwl_proxy; AOpcode: UInt32; AInterface: Pwl_interface; AVersion: UInt32; AFlags: UInt32; AArgs: Pwl_argument): Pwl_proxy; cdecl;
+  wl_proxy_marshal_array_constructor_versioned: function(AProxy: Pwl_proxy; AOpcode: UInt32; AArgs: Pwl_argument; AInterface: Pwl_interface; AVersion: UInt32): Pwl_proxy; cdecl;
   wl_proxy_marshal_array: procedure(AProxy: Pwl_proxy; AOpcode: UInt32; AArgs: Pwl_argument); cdecl;
   wl_proxy_destroy: procedure(AProxy: Pwl_proxy); cdecl;
   wl_proxy_add_listener: function(AProxy: Pwl_proxy; AImplementation: Pointer; AData: Pointer): Integer; cdecl;
@@ -113,19 +127,21 @@ var
 /// <summary>Loads libwayland-client.so.0 (once). False with AError = what is missing.</summary>
 function LoadWaylandClient(out AError: string): Boolean;
 /// <summary>True after a successful LoadWaylandClient.</summary>
+
 function WaylandClientLoaded: Boolean;
 
 /// <summary>Sends a request (what wl_proxy_marshal_flags does in C, through the array variant): AInterface/AVersion
 /// for the object a new_id argument creates (nil if none), AFlags = WL_MARSHAL_FLAG_DESTROY for destructors. Falls
 /// back to the older wl_proxy_marshal_array_constructor_versioned on libwayland before 1.20.</summary>
-function WlProxyMarshalFlags(AProxy: Pwl_proxy; AOpcode: UInt32; AInterface: Pwl_interface; AVersion: UInt32;
-  AFlags: UInt32; AArgs: Pwl_argument): Pwl_proxy;
+function WlProxyMarshalFlags(AProxy: Pwl_proxy; AOpcode: UInt32; AInterface: Pwl_interface; AVersion: UInt32; AFlags: UInt32; AArgs: Pwl_argument): Pwl_proxy;
 
 /// <summary>wl_fixed_t to Double.</summary>
 function wl_fixed_to_double(AValue: Twl_fixed): Double; inline;
 /// <summary>Double to wl_fixed_t.</summary>
+
 function wl_fixed_from_double(AValue: Double): Twl_fixed; inline;
 /// <summary>Integer to wl_fixed_t.</summary>
+
 function wl_fixed_from_int(AValue: Integer): Twl_fixed; inline;
 
 implementation
@@ -210,8 +226,7 @@ begin
   Result := True;
 end;
 
-function WlProxyMarshalFlags(AProxy: Pwl_proxy; AOpcode: UInt32; AInterface: Pwl_interface; AVersion: UInt32;
-  AFlags: UInt32; AArgs: Pwl_argument): Pwl_proxy;
+function WlProxyMarshalFlags(AProxy: Pwl_proxy; AOpcode: UInt32; AInterface: Pwl_interface; AVersion: UInt32; AFlags: UInt32; AArgs: Pwl_argument): Pwl_proxy;
 begin
   if Assigned(wl_proxy_marshal_array_flags) then
     Exit(wl_proxy_marshal_array_flags(AProxy, AOpcode, AInterface, AVersion, AFlags, AArgs));
@@ -242,3 +257,4 @@ begin
 end;
 
 end.
+

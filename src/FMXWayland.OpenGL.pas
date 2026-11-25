@@ -1,4 +1,4 @@
-﻿{ FMXWayland: desktop OpenGL contexts over EGL/Wayland. MIT license. }
+﻿{ FMXWayland: desktop OpenGL contexts over EGL on Wayland and X11. MIT license. }
 unit FMXWayland.OpenGL;
 
 interface
@@ -6,32 +6,35 @@ interface
 // FMX.Context.Linux owns rendering, shaders and FBOs. This unit owns only the
 // native context lifetime. No window EGL surface is needed by TViewport3D.
 function CreateSharedOpenGLContext: Pointer; cdecl;
+
 function CreateThreadOpenGLContext: Pointer; cdecl;
+
 procedure MakeOpenGLContextCurrent(Context: Pointer); cdecl;
+
 procedure ShutdownOpenGL;
 
 implementation
 
 uses
-  System.SysUtils, System.Generics.Collections, Posix.Dlfcn,
+  System.SysUtils, System.Generics.Collections, Posix.Dlfcn, FMUX.Api,
   FMXWayland.Platform;
 
 type
   TEGLContext = class
     Handle: Pointer;
   end;
-  TGetPlatformDisplay = function(Platform: Cardinal; NativeDisplay: Pointer;
-    Attributes: PInteger): Pointer; cdecl;
+
+  TGetPlatformDisplay = function(platform: Cardinal; NativeDisplay: Pointer; Attributes: PInteger): Pointer; cdecl;
 
 const
   EGL_NONE = $3038;
   EGL_OPENGL_API = $30A2;
+  EGL_PLATFORM_X11_EXT = $31D5;
   EGL_PLATFORM_WAYLAND_EXT = $31D8;
   ConfigAttributes: array[0..12] of Integer = (
     $3033, $0004, // EGL_SURFACE_TYPE, EGL_WINDOW_BIT (Wayland configs)
     $3040, $0008, // EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT (desktop compatibility GL)
     $3024, 8, $3023, 8, $3022, 8, $3021, 8, EGL_NONE);
-
   ContextAttributes: array[0..0] of Integer = (EGL_NONE);
 
 var
@@ -43,8 +46,7 @@ var
   eglGetProcAddress: function(Name: PAnsiChar): Pointer; cdecl;
   eglInitialize: function(Dpy: Pointer; Major, Minor: PInteger): Cardinal; cdecl;
   eglBindAPI: function(Api: Cardinal): Cardinal; cdecl;
-  eglChooseConfig: function(Dpy: Pointer; Attributes: PInteger; Configs: PPointer;
-    ConfigSize: Integer; Count: PInteger): Cardinal; cdecl;
+  eglChooseConfig: function(Dpy: Pointer; Attributes: PInteger; Configs: PPointer; ConfigSize: Integer; Count: PInteger): Cardinal; cdecl;
   eglCreateContext: function(Dpy, Cfg, Share: Pointer; Attributes: PInteger): Pointer; cdecl;
   eglMakeCurrent: function(Dpy, Draw, ReadSurface, Ctx: Pointer): Cardinal; cdecl;
   eglDestroyContext: function(Dpy, Ctx: Pointer): Cardinal; cdecl;
@@ -55,8 +57,7 @@ var
 procedure Check(Success: Boolean; const Operation: string);
 begin
   if not Success then
-    raise Exception.CreateFmt('OpenGL: %s failed (EGL 0x%s)',
-      [Operation, IntToHex(eglGetError(), 4)]);
+    raise Exception.CreateFmt('OpenGL: %s failed (EGL 0x%s)', [Operation, IntToHex(eglGetError(), 4)]);
 end;
 
 function Symbol(const Name: PAnsiChar): Pointer;
@@ -72,7 +73,8 @@ var
   Count: Integer;
   Candidate: Pointer;
 begin
-  if Display <> nil then Exit;
+  if Display <> nil then
+    Exit;
   if LibraryHandle = 0 then
   begin
     LibraryHandle := dlopen('libEGL.so.1', RTLD_NOW or RTLD_LOCAL);
@@ -91,10 +93,13 @@ begin
   @eglQueryString := Symbol('eglQueryString');
   @GetPlatformDisplay := eglGetProcAddress('eglGetPlatformDisplayEXT');
   if not Assigned(GetPlatformDisplay) then
-    raise Exception.Create('OpenGL: EGL_EXT_platform_wayland is required');
-  Candidate := GetPlatformDisplay(EGL_PLATFORM_WAYLAND_EXT, WlConnect.Display, nil);
-  Check(Candidate <> nil, 'get Wayland display');
-  Check(eglInitialize(Candidate, nil, nil) <> 0, 'initialize Wayland display');
+    raise Exception.Create('OpenGL: eglGetPlatformDisplayEXT is required');
+  if Assigned(FMUX.Api.IsWayland) and not FMUX.Api.IsWayland() then
+    Candidate := GetPlatformDisplay(EGL_PLATFORM_X11_EXT, nil, nil)
+  else
+    Candidate := GetPlatformDisplay(EGL_PLATFORM_WAYLAND_EXT, WlConnect.Display, nil);
+  Check(Candidate <> nil, 'get platform display');
+  Check(eglInitialize(Candidate, nil, nil) <> 0, 'initialize platform display');
   try
     if not (' ' + string(eglQueryString(Candidate, $3055)) + ' ').Contains(' EGL_KHR_surfaceless_context ') then
       raise Exception.Create('OpenGL: EGL_KHR_surfaceless_context is required for offscreen rendering');
@@ -125,7 +130,8 @@ begin
     MakeOpenGLContextCurrent(Result);
     Contexts.Add(Result);
   except
-    if Result.Handle <> nil then eglDestroyContext(Display, Result.Handle);
+    if Result.Handle <> nil then
+      eglDestroyContext(Display, Result.Handle);
     Result.Free;
     raise;
   end;
@@ -136,7 +142,8 @@ begin
   TMonitor.Enter(Lock);
   try
     Initialize;
-    if Shared = nil then Shared := NewContext(nil);
+    if Shared = nil then
+      Shared := NewContext(nil);
     MakeOpenGLContextCurrent(Shared);
     Result := Shared;
   finally
@@ -148,7 +155,8 @@ function CreateThreadOpenGLContext: Pointer; cdecl;
 begin
   TMonitor.Enter(Lock);
   try
-    if Shared = nil then CreateSharedOpenGLContext;
+    if Shared = nil then
+      CreateSharedOpenGLContext;
     Result := NewContext(Shared.Handle);
   finally
     TMonitor.Exit(Lock);
@@ -193,6 +201,9 @@ end;
 
 initialization
   Lock := TObject.Create;
+
 finalization
   Lock.Free;
+
 end.
+

@@ -36,10 +36,13 @@ type
   /// <summary>wp_viewporter: surface cropping and scaling</summary>
   Twp_viewporter = record
   end;
+
   Pwp_viewporter = ^Twp_viewporter;
   /// <summary>wp_viewport: crop and scale interface to a wl_surface</summary>
+
   Twp_viewport = record
   end;
+
   Pwp_viewport = ^Twp_viewport;
 
 const
@@ -64,21 +67,30 @@ var
   wp_viewport_interface: Twl_interface;
 
 procedure wp_viewporter_set_user_data(AWpViewporter: Pwp_viewporter; AUserData: Pointer);
+
 function wp_viewporter_get_user_data(AWpViewporter: Pwp_viewporter): Pointer;
+
 function wp_viewporter_get_version(AWpViewporter: Pwp_viewporter): UInt32;
 /// <summary>wp_viewporter.destroy: unbind from the cropping and scaling interface</summary>
+
 procedure wp_viewporter_destroy(AWpViewporter: Pwp_viewporter);
 /// <summary>wp_viewporter.get_viewport: extend surface interface for crop and scale</summary>
+
 function wp_viewporter_get_viewport(AWpViewporter: Pwp_viewporter; ASurface: Pwl_surface): Pwp_viewport;
 
 procedure wp_viewport_set_user_data(AWpViewport: Pwp_viewport; AUserData: Pointer);
+
 function wp_viewport_get_user_data(AWpViewport: Pwp_viewport): Pointer;
+
 function wp_viewport_get_version(AWpViewport: Pwp_viewport): UInt32;
 /// <summary>wp_viewport.destroy: remove scaling and cropping from the surface</summary>
+
 procedure wp_viewport_destroy(AWpViewport: Pwp_viewport);
 /// <summary>wp_viewport.set_source: set the source rectangle for cropping</summary>
+
 procedure wp_viewport_set_source(AWpViewport: Pwp_viewport; AX: Twl_fixed; AY: Twl_fixed; AWidth: Twl_fixed; AHeight: Twl_fixed);
 /// <summary>wp_viewport.set_destination: set the surface size for scaling</summary>
+
 procedure wp_viewport_set_destination(AWpViewport: Pwp_viewport; AWidth: Int32; AHeight: Int32);
 
 implementation
@@ -152,7 +164,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASurface;
   Result := Pwp_viewport(WlProxyMarshalFlags(Pwl_proxy(AWpViewporter), WP_VIEWPORTER_GET_VIEWPORT_OPCODE, @wp_viewport_interface,
-    wl_proxy_get_version(Pwl_proxy(AWpViewporter)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWpViewporter)), 0, @LArgs[0]));
 end;
 
 procedure wp_viewport_set_user_data(AWpViewport: Pwp_viewport; AUserData: Pointer);
@@ -202,4 +214,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

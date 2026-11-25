@@ -39,92 +39,136 @@ uses
 type
   Pwl_display = FMXWayland.Wayland.Pwl_display;
   /// <summary>wl_registry: global registry object</summary>
+
   Twl_registry = record
   end;
+
   Pwl_registry = ^Twl_registry;
   /// <summary>wl_callback: callback object</summary>
+
   Twl_callback = record
   end;
+
   Pwl_callback = ^Twl_callback;
   /// <summary>wl_compositor: the compositor singleton</summary>
+
   Twl_compositor = record
   end;
+
   Pwl_compositor = ^Twl_compositor;
   /// <summary>wl_shm_pool: a shared memory pool</summary>
+
   Twl_shm_pool = record
   end;
+
   Pwl_shm_pool = ^Twl_shm_pool;
   /// <summary>wl_shm: shared memory support</summary>
+
   Twl_shm = record
   end;
+
   Pwl_shm = ^Twl_shm;
   /// <summary>wl_buffer: content for a wl_surface</summary>
+
   Twl_buffer = record
   end;
+
   Pwl_buffer = ^Twl_buffer;
   /// <summary>wl_data_offer: offer to transfer data</summary>
+
   Twl_data_offer = record
   end;
+
   Pwl_data_offer = ^Twl_data_offer;
   /// <summary>wl_data_source: offer to transfer data</summary>
+
   Twl_data_source = record
   end;
+
   Pwl_data_source = ^Twl_data_source;
   /// <summary>wl_data_device: data transfer device</summary>
+
   Twl_data_device = record
   end;
+
   Pwl_data_device = ^Twl_data_device;
   /// <summary>wl_data_device_manager: data transfer interface</summary>
+
   Twl_data_device_manager = record
   end;
+
   Pwl_data_device_manager = ^Twl_data_device_manager;
   /// <summary>wl_shell: create desktop-style surfaces</summary>
+
   Twl_shell = record
   end;
+
   Pwl_shell = ^Twl_shell;
   /// <summary>wl_shell_surface: desktop-style metadata interface</summary>
+
   Twl_shell_surface = record
   end;
+
   Pwl_shell_surface = ^Twl_shell_surface;
   /// <summary>wl_surface: an onscreen surface</summary>
+
   Twl_surface = record
   end;
+
   Pwl_surface = ^Twl_surface;
   /// <summary>wl_seat: group of input devices</summary>
+
   Twl_seat = record
   end;
+
   Pwl_seat = ^Twl_seat;
   /// <summary>wl_pointer: pointer input device</summary>
+
   Twl_pointer = record
   end;
+
   Pwl_pointer = ^Twl_pointer;
   /// <summary>wl_keyboard: keyboard input device</summary>
+
   Twl_keyboard = record
   end;
+
   Pwl_keyboard = ^Twl_keyboard;
   /// <summary>wl_touch: touchscreen input device</summary>
+
   Twl_touch = record
   end;
+
   Pwl_touch = ^Twl_touch;
   /// <summary>wl_output: compositor output region</summary>
+
   Twl_output = record
   end;
+
   Pwl_output = ^Twl_output;
   /// <summary>wl_region: region interface</summary>
+
   Twl_region = record
   end;
+
   Pwl_region = ^Twl_region;
   /// <summary>wl_subcompositor: sub-surface compositing</summary>
+
   Twl_subcompositor = record
   end;
+
   Pwl_subcompositor = ^Twl_subcompositor;
   /// <summary>wl_subsurface: sub-surface interface to a wl_surface</summary>
+
   Twl_subsurface = record
   end;
+
   Pwl_subsurface = ^Twl_subsurface;
   /// <summary>wl_fixes: wayland protocol fixes</summary>
+
   Twl_fixes = record
   end;
+
   Pwl_fixes = ^Twl_fixes;
 
 const
@@ -556,34 +600,44 @@ type
     /// <summary>acknowledge object ID deletion</summary>
     delete_id: procedure(AData: Pointer; AWlDisplay: Pwl_display; AId: UInt32); cdecl;
   end;
+
   Pwl_display_listener = ^Twl_display_listener;
   /// <summary>Events of wl_registry (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_registry_listener = record
     /// <summary>announce global object</summary>
     global: procedure(AData: Pointer; AWlRegistry: Pwl_registry; AName: UInt32; AInterface: PAnsiChar; AVersion: UInt32); cdecl;
     /// <summary>announce removal of global object</summary>
     global_remove: procedure(AData: Pointer; AWlRegistry: Pwl_registry; AName: UInt32); cdecl;
   end;
+
   Pwl_registry_listener = ^Twl_registry_listener;
   /// <summary>Events of wl_callback (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_callback_listener = record
     /// <summary>done event</summary>
     done: procedure(AData: Pointer; AWlCallback: Pwl_callback; ACallbackData: UInt32); cdecl;
   end;
+
   Pwl_callback_listener = ^Twl_callback_listener;
   /// <summary>Events of wl_shm (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_shm_listener = record
     /// <summary>pixel format description</summary>
     format: procedure(AData: Pointer; AWlShm: Pwl_shm; AFormat: UInt32); cdecl;
   end;
+
   Pwl_shm_listener = ^Twl_shm_listener;
   /// <summary>Events of wl_buffer (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_buffer_listener = record
     /// <summary>compositor releases buffer</summary>
     release: procedure(AData: Pointer; AWlBuffer: Pwl_buffer); cdecl;
   end;
+
   Pwl_buffer_listener = ^Twl_buffer_listener;
   /// <summary>Events of wl_data_offer (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_data_offer_listener = record
     /// <summary>advertise offered mime type</summary>
     offer: procedure(AData: Pointer; AWlDataOffer: Pwl_data_offer; AMimeType: PAnsiChar); cdecl;
@@ -592,8 +646,10 @@ type
     /// <summary>notify the selected action</summary>
     action: procedure(AData: Pointer; AWlDataOffer: Pwl_data_offer; ADndAction: UInt32); cdecl;
   end;
+
   Pwl_data_offer_listener = ^Twl_data_offer_listener;
   /// <summary>Events of wl_data_source (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_data_source_listener = record
     /// <summary>a target accepts an offered mime type</summary>
     target: procedure(AData: Pointer; AWlDataSource: Pwl_data_source; AMimeType: PAnsiChar); cdecl;
@@ -608,8 +664,10 @@ type
     /// <summary>notify the selected action</summary>
     action: procedure(AData: Pointer; AWlDataSource: Pwl_data_source; ADndAction: UInt32); cdecl;
   end;
+
   Pwl_data_source_listener = ^Twl_data_source_listener;
   /// <summary>Events of wl_data_device (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_data_device_listener = record
     /// <summary>introduce a new wl_data_offer</summary>
     data_offer: procedure(AData: Pointer; AWlDataDevice: Pwl_data_device; AId: Pwl_data_offer); cdecl;
@@ -624,8 +682,10 @@ type
     /// <summary>advertise new selection</summary>
     selection: procedure(AData: Pointer; AWlDataDevice: Pwl_data_device; AId: Pwl_data_offer); cdecl;
   end;
+
   Pwl_data_device_listener = ^Twl_data_device_listener;
   /// <summary>Events of wl_shell_surface (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_shell_surface_listener = record
     /// <summary>ping client</summary>
     ping: procedure(AData: Pointer; AWlShellSurface: Pwl_shell_surface; ASerial: UInt32); cdecl;
@@ -634,8 +694,10 @@ type
     /// <summary>popup interaction is done</summary>
     popup_done: procedure(AData: Pointer; AWlShellSurface: Pwl_shell_surface); cdecl;
   end;
+
   Pwl_shell_surface_listener = ^Twl_shell_surface_listener;
   /// <summary>Events of wl_surface (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_surface_listener = record
     /// <summary>surface enters an output</summary>
     enter: procedure(AData: Pointer; AWlSurface: Pwl_surface; AOutput: Pwl_output); cdecl;
@@ -646,16 +708,20 @@ type
     /// <summary>preferred buffer transform for the surface</summary>
     preferred_buffer_transform: procedure(AData: Pointer; AWlSurface: Pwl_surface; ATransform: UInt32); cdecl;
   end;
+
   Pwl_surface_listener = ^Twl_surface_listener;
   /// <summary>Events of wl_seat (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_seat_listener = record
     /// <summary>seat capabilities changed</summary>
     capabilities: procedure(AData: Pointer; AWlSeat: Pwl_seat; ACapabilities: UInt32); cdecl;
     /// <summary>unique identifier for this seat</summary>
-    name: procedure(AData: Pointer; AWlSeat: Pwl_seat; AName: PAnsiChar); cdecl;
+name: procedure(AData: Pointer; AWlSeat: Pwl_seat; AName: PAnsiChar); cdecl;
   end;
+
   Pwl_seat_listener = ^Twl_seat_listener;
   /// <summary>Events of wl_pointer (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_pointer_listener = record
     /// <summary>enter event</summary>
     enter: procedure(AData: Pointer; AWlPointer: Pwl_pointer; ASerial: UInt32; ASurface: Pwl_surface; ASurfaceX: Twl_fixed; ASurfaceY: Twl_fixed); cdecl;
@@ -680,8 +746,10 @@ type
     /// <summary>axis relative physical direction event</summary>
     axis_relative_direction: procedure(AData: Pointer; AWlPointer: Pwl_pointer; AAxis: UInt32; ADirection: UInt32); cdecl;
   end;
+
   Pwl_pointer_listener = ^Twl_pointer_listener;
   /// <summary>Events of wl_keyboard (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_keyboard_listener = record
     /// <summary>keyboard mapping</summary>
     keymap: procedure(AData: Pointer; AWlKeyboard: Pwl_keyboard; AFormat: UInt32; AFd: Int32; ASize: UInt32); cdecl;
@@ -696,8 +764,10 @@ type
     /// <summary>repeat rate and delay</summary>
     repeat_info: procedure(AData: Pointer; AWlKeyboard: Pwl_keyboard; ARate: Int32; ADelay: Int32); cdecl;
   end;
+
   Pwl_keyboard_listener = ^Twl_keyboard_listener;
   /// <summary>Events of wl_touch (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_touch_listener = record
     /// <summary>touch down event and beginning of a touch sequence</summary>
     down: procedure(AData: Pointer; AWlTouch: Pwl_touch; ASerial: UInt32; ATime: UInt32; ASurface: Pwl_surface; AId: Int32; AX: Twl_fixed; AY: Twl_fixed); cdecl;
@@ -714,8 +784,10 @@ type
     /// <summary>update orientation of touch point</summary>
     orientation: procedure(AData: Pointer; AWlTouch: Pwl_touch; AId: Int32; AOrientation: Twl_fixed); cdecl;
   end;
+
   Pwl_touch_listener = ^Twl_touch_listener;
   /// <summary>Events of wl_output (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Twl_output_listener = record
     /// <summary>properties of the output</summary>
     geometry: procedure(AData: Pointer; AWlOutput: Pwl_output; AX: Int32; AY: Int32; APhysicalWidth: Int32; APhysicalHeight: Int32; ASubpixel: Int32; AMake: PAnsiChar; AModel: PAnsiChar; ATransform: Int32); cdecl;
@@ -726,10 +798,11 @@ type
     /// <summary>output scaling properties</summary>
     scale: procedure(AData: Pointer; AWlOutput: Pwl_output; AFactor: Int32); cdecl;
     /// <summary>name of this output</summary>
-    name: procedure(AData: Pointer; AWlOutput: Pwl_output; AName: PAnsiChar); cdecl;
+name: procedure(AData: Pointer; AWlOutput: Pwl_output; AName: PAnsiChar); cdecl;
     /// <summary>human-readable description of this output</summary>
     description: procedure(AData: Pointer; AWlOutput: Pwl_output; ADescription: PAnsiChar); cdecl;
   end;
+
   Pwl_output_listener = ^Twl_output_listener;
 
 var
@@ -759,255 +832,394 @@ var
 
 function wl_display_add_listener(AWlDisplay: Pwl_display; AListener: Pwl_display_listener; AData: Pointer): Integer;
 /// <summary>wl_display.sync: asynchronous roundtrip</summary>
+
 function wl_display_sync(AWlDisplay: Pwl_display): Pwl_callback;
 /// <summary>wl_display.get_registry: get global registry object</summary>
+
 function wl_display_get_registry(AWlDisplay: Pwl_display): Pwl_registry;
 
 function wl_registry_add_listener(AWlRegistry: Pwl_registry; AListener: Pwl_registry_listener; AData: Pointer): Integer;
+
 procedure wl_registry_set_user_data(AWlRegistry: Pwl_registry; AUserData: Pointer);
+
 function wl_registry_get_user_data(AWlRegistry: Pwl_registry): Pointer;
+
 function wl_registry_get_version(AWlRegistry: Pwl_registry): UInt32;
+
 procedure wl_registry_destroy(AWlRegistry: Pwl_registry);
 /// <summary>wl_registry.bind: bind an object to the display</summary>
+
 function wl_registry_bind(AWlRegistry: Pwl_registry; AName: UInt32; AInterface: Pwl_interface; AVersion: UInt32): Pointer;
 
 function wl_callback_add_listener(AWlCallback: Pwl_callback; AListener: Pwl_callback_listener; AData: Pointer): Integer;
+
 procedure wl_callback_set_user_data(AWlCallback: Pwl_callback; AUserData: Pointer);
+
 function wl_callback_get_user_data(AWlCallback: Pwl_callback): Pointer;
+
 function wl_callback_get_version(AWlCallback: Pwl_callback): UInt32;
+
 procedure wl_callback_destroy(AWlCallback: Pwl_callback);
 
 procedure wl_compositor_set_user_data(AWlCompositor: Pwl_compositor; AUserData: Pointer);
+
 function wl_compositor_get_user_data(AWlCompositor: Pwl_compositor): Pointer;
+
 function wl_compositor_get_version(AWlCompositor: Pwl_compositor): UInt32;
+
 procedure wl_compositor_destroy(AWlCompositor: Pwl_compositor);
 /// <summary>wl_compositor.create_surface: create new surface</summary>
+
 function wl_compositor_create_surface(AWlCompositor: Pwl_compositor): Pwl_surface;
 /// <summary>wl_compositor.create_region: create new region</summary>
+
 function wl_compositor_create_region(AWlCompositor: Pwl_compositor): Pwl_region;
 
 procedure wl_shm_pool_set_user_data(AWlShmPool: Pwl_shm_pool; AUserData: Pointer);
+
 function wl_shm_pool_get_user_data(AWlShmPool: Pwl_shm_pool): Pointer;
+
 function wl_shm_pool_get_version(AWlShmPool: Pwl_shm_pool): UInt32;
 /// <summary>wl_shm_pool.create_buffer: create a buffer from the pool</summary>
+
 function wl_shm_pool_create_buffer(AWlShmPool: Pwl_shm_pool; AOffset: Int32; AWidth: Int32; AHeight: Int32; AStride: Int32; AFormat: UInt32): Pwl_buffer;
 /// <summary>wl_shm_pool.destroy: destroy the pool</summary>
+
 procedure wl_shm_pool_destroy(AWlShmPool: Pwl_shm_pool);
 /// <summary>wl_shm_pool.resize: change the size of the pool mapping</summary>
+
 procedure wl_shm_pool_resize(AWlShmPool: Pwl_shm_pool; ASize: Int32);
 
 function wl_shm_add_listener(AWlShm: Pwl_shm; AListener: Pwl_shm_listener; AData: Pointer): Integer;
+
 procedure wl_shm_set_user_data(AWlShm: Pwl_shm; AUserData: Pointer);
+
 function wl_shm_get_user_data(AWlShm: Pwl_shm): Pointer;
+
 function wl_shm_get_version(AWlShm: Pwl_shm): UInt32;
+
 procedure wl_shm_destroy(AWlShm: Pwl_shm);
 /// <summary>wl_shm.create_pool: create a shm pool</summary>
+
 function wl_shm_create_pool(AWlShm: Pwl_shm; AFd: Int32; ASize: Int32): Pwl_shm_pool;
 /// <summary>wl_shm.release: release the shm object</summary>
+
 procedure wl_shm_release(AWlShm: Pwl_shm);
 
 function wl_buffer_add_listener(AWlBuffer: Pwl_buffer; AListener: Pwl_buffer_listener; AData: Pointer): Integer;
+
 procedure wl_buffer_set_user_data(AWlBuffer: Pwl_buffer; AUserData: Pointer);
+
 function wl_buffer_get_user_data(AWlBuffer: Pwl_buffer): Pointer;
+
 function wl_buffer_get_version(AWlBuffer: Pwl_buffer): UInt32;
 /// <summary>wl_buffer.destroy: destroy a buffer</summary>
+
 procedure wl_buffer_destroy(AWlBuffer: Pwl_buffer);
 
 function wl_data_offer_add_listener(AWlDataOffer: Pwl_data_offer; AListener: Pwl_data_offer_listener; AData: Pointer): Integer;
+
 procedure wl_data_offer_set_user_data(AWlDataOffer: Pwl_data_offer; AUserData: Pointer);
+
 function wl_data_offer_get_user_data(AWlDataOffer: Pwl_data_offer): Pointer;
+
 function wl_data_offer_get_version(AWlDataOffer: Pwl_data_offer): UInt32;
 /// <summary>wl_data_offer.accept: accept one of the offered mime types</summary>
+
 procedure wl_data_offer_accept(AWlDataOffer: Pwl_data_offer; ASerial: UInt32; AMimeType: PAnsiChar);
 /// <summary>wl_data_offer.receive: request that the data is transferred</summary>
+
 procedure wl_data_offer_receive(AWlDataOffer: Pwl_data_offer; AMimeType: PAnsiChar; AFd: Int32);
 /// <summary>wl_data_offer.destroy: destroy data offer</summary>
+
 procedure wl_data_offer_destroy(AWlDataOffer: Pwl_data_offer);
 /// <summary>wl_data_offer.finish: the offer will no longer be used</summary>
+
 procedure wl_data_offer_finish(AWlDataOffer: Pwl_data_offer);
 /// <summary>wl_data_offer.set_actions: set the available/preferred drag-and-drop actions</summary>
+
 procedure wl_data_offer_set_actions(AWlDataOffer: Pwl_data_offer; ADndActions: UInt32; APreferredAction: UInt32);
 
 function wl_data_source_add_listener(AWlDataSource: Pwl_data_source; AListener: Pwl_data_source_listener; AData: Pointer): Integer;
+
 procedure wl_data_source_set_user_data(AWlDataSource: Pwl_data_source; AUserData: Pointer);
+
 function wl_data_source_get_user_data(AWlDataSource: Pwl_data_source): Pointer;
+
 function wl_data_source_get_version(AWlDataSource: Pwl_data_source): UInt32;
 /// <summary>wl_data_source.offer: add an offered mime type</summary>
+
 procedure wl_data_source_offer(AWlDataSource: Pwl_data_source; AMimeType: PAnsiChar);
 /// <summary>wl_data_source.destroy: destroy the data source</summary>
+
 procedure wl_data_source_destroy(AWlDataSource: Pwl_data_source);
 /// <summary>wl_data_source.set_actions: set the available drag-and-drop actions</summary>
+
 procedure wl_data_source_set_actions(AWlDataSource: Pwl_data_source; ADndActions: UInt32);
 
 function wl_data_device_add_listener(AWlDataDevice: Pwl_data_device; AListener: Pwl_data_device_listener; AData: Pointer): Integer;
+
 procedure wl_data_device_set_user_data(AWlDataDevice: Pwl_data_device; AUserData: Pointer);
+
 function wl_data_device_get_user_data(AWlDataDevice: Pwl_data_device): Pointer;
+
 function wl_data_device_get_version(AWlDataDevice: Pwl_data_device): UInt32;
+
 procedure wl_data_device_destroy(AWlDataDevice: Pwl_data_device);
 /// <summary>wl_data_device.start_drag: start drag-and-drop operation</summary>
+
 procedure wl_data_device_start_drag(AWlDataDevice: Pwl_data_device; ASource: Pwl_data_source; AOrigin: Pwl_surface; AIcon: Pwl_surface; ASerial: UInt32);
 /// <summary>wl_data_device.set_selection: copy data to the selection</summary>
+
 procedure wl_data_device_set_selection(AWlDataDevice: Pwl_data_device; ASource: Pwl_data_source; ASerial: UInt32);
 /// <summary>wl_data_device.release: destroy data device</summary>
+
 procedure wl_data_device_release(AWlDataDevice: Pwl_data_device);
 
 procedure wl_data_device_manager_set_user_data(AWlDataDeviceManager: Pwl_data_device_manager; AUserData: Pointer);
+
 function wl_data_device_manager_get_user_data(AWlDataDeviceManager: Pwl_data_device_manager): Pointer;
+
 function wl_data_device_manager_get_version(AWlDataDeviceManager: Pwl_data_device_manager): UInt32;
+
 procedure wl_data_device_manager_destroy(AWlDataDeviceManager: Pwl_data_device_manager);
 /// <summary>wl_data_device_manager.create_data_source: create a new data source</summary>
+
 function wl_data_device_manager_create_data_source(AWlDataDeviceManager: Pwl_data_device_manager): Pwl_data_source;
 /// <summary>wl_data_device_manager.get_data_device: create a new data device</summary>
+
 function wl_data_device_manager_get_data_device(AWlDataDeviceManager: Pwl_data_device_manager; ASeat: Pwl_seat): Pwl_data_device;
 
 procedure wl_shell_set_user_data(AWlShell: Pwl_shell; AUserData: Pointer);
+
 function wl_shell_get_user_data(AWlShell: Pwl_shell): Pointer;
+
 function wl_shell_get_version(AWlShell: Pwl_shell): UInt32;
+
 procedure wl_shell_destroy(AWlShell: Pwl_shell);
 /// <summary>wl_shell.get_shell_surface: create a shell surface from a surface</summary>
+
 function wl_shell_get_shell_surface(AWlShell: Pwl_shell; ASurface: Pwl_surface): Pwl_shell_surface;
 
 function wl_shell_surface_add_listener(AWlShellSurface: Pwl_shell_surface; AListener: Pwl_shell_surface_listener; AData: Pointer): Integer;
+
 procedure wl_shell_surface_set_user_data(AWlShellSurface: Pwl_shell_surface; AUserData: Pointer);
+
 function wl_shell_surface_get_user_data(AWlShellSurface: Pwl_shell_surface): Pointer;
+
 function wl_shell_surface_get_version(AWlShellSurface: Pwl_shell_surface): UInt32;
+
 procedure wl_shell_surface_destroy(AWlShellSurface: Pwl_shell_surface);
 /// <summary>wl_shell_surface.pong: respond to a ping event</summary>
+
 procedure wl_shell_surface_pong(AWlShellSurface: Pwl_shell_surface; ASerial: UInt32);
 /// <summary>wl_shell_surface.move: start an interactive move</summary>
+
 procedure wl_shell_surface_move(AWlShellSurface: Pwl_shell_surface; ASeat: Pwl_seat; ASerial: UInt32);
 /// <summary>wl_shell_surface.resize: start an interactive resize</summary>
+
 procedure wl_shell_surface_resize(AWlShellSurface: Pwl_shell_surface; ASeat: Pwl_seat; ASerial: UInt32; AEdges: UInt32);
 /// <summary>wl_shell_surface.set_toplevel: make the surface a toplevel surface</summary>
+
 procedure wl_shell_surface_set_toplevel(AWlShellSurface: Pwl_shell_surface);
 /// <summary>wl_shell_surface.set_transient: make the surface a transient surface</summary>
+
 procedure wl_shell_surface_set_transient(AWlShellSurface: Pwl_shell_surface; AParent: Pwl_surface; AX: Int32; AY: Int32; AFlags: UInt32);
 /// <summary>wl_shell_surface.set_fullscreen: make the surface a fullscreen surface</summary>
+
 procedure wl_shell_surface_set_fullscreen(AWlShellSurface: Pwl_shell_surface; AMethod: UInt32; AFramerate: UInt32; AOutput: Pwl_output);
 /// <summary>wl_shell_surface.set_popup: make the surface a popup surface</summary>
+
 procedure wl_shell_surface_set_popup(AWlShellSurface: Pwl_shell_surface; ASeat: Pwl_seat; ASerial: UInt32; AParent: Pwl_surface; AX: Int32; AY: Int32; AFlags: UInt32);
 /// <summary>wl_shell_surface.set_maximized: make the surface a maximized surface</summary>
+
 procedure wl_shell_surface_set_maximized(AWlShellSurface: Pwl_shell_surface; AOutput: Pwl_output);
 /// <summary>wl_shell_surface.set_title: set surface title</summary>
+
 procedure wl_shell_surface_set_title(AWlShellSurface: Pwl_shell_surface; ATitle: PAnsiChar);
 /// <summary>wl_shell_surface.set_class: set surface class</summary>
+
 procedure wl_shell_surface_set_class(AWlShellSurface: Pwl_shell_surface; AClass: PAnsiChar);
 
 function wl_surface_add_listener(AWlSurface: Pwl_surface; AListener: Pwl_surface_listener; AData: Pointer): Integer;
+
 procedure wl_surface_set_user_data(AWlSurface: Pwl_surface; AUserData: Pointer);
+
 function wl_surface_get_user_data(AWlSurface: Pwl_surface): Pointer;
+
 function wl_surface_get_version(AWlSurface: Pwl_surface): UInt32;
 /// <summary>wl_surface.destroy: delete surface</summary>
+
 procedure wl_surface_destroy(AWlSurface: Pwl_surface);
 /// <summary>wl_surface.attach: set the surface contents</summary>
+
 procedure wl_surface_attach(AWlSurface: Pwl_surface; ABuffer: Pwl_buffer; AX: Int32; AY: Int32);
 /// <summary>wl_surface.damage: mark part of the surface damaged</summary>
+
 procedure wl_surface_damage(AWlSurface: Pwl_surface; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 /// <summary>wl_surface.frame: request a frame throttling hint</summary>
+
 function wl_surface_frame(AWlSurface: Pwl_surface): Pwl_callback;
 /// <summary>wl_surface.set_opaque_region: set opaque region</summary>
+
 procedure wl_surface_set_opaque_region(AWlSurface: Pwl_surface; ARegion: Pwl_region);
 /// <summary>wl_surface.set_input_region: set input region</summary>
+
 procedure wl_surface_set_input_region(AWlSurface: Pwl_surface; ARegion: Pwl_region);
 /// <summary>wl_surface.commit: commit pending surface state</summary>
+
 procedure wl_surface_commit(AWlSurface: Pwl_surface);
 /// <summary>wl_surface.set_buffer_transform: sets the buffer transformation</summary>
+
 procedure wl_surface_set_buffer_transform(AWlSurface: Pwl_surface; ATransform: Int32);
 /// <summary>wl_surface.set_buffer_scale: sets the buffer scaling factor</summary>
+
 procedure wl_surface_set_buffer_scale(AWlSurface: Pwl_surface; AScale: Int32);
 /// <summary>wl_surface.damage_buffer: mark part of the surface damaged using buffer coordinates</summary>
+
 procedure wl_surface_damage_buffer(AWlSurface: Pwl_surface; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 /// <summary>wl_surface.offset: set the surface contents offset</summary>
+
 procedure wl_surface_offset(AWlSurface: Pwl_surface; AX: Int32; AY: Int32);
 
 function wl_seat_add_listener(AWlSeat: Pwl_seat; AListener: Pwl_seat_listener; AData: Pointer): Integer;
+
 procedure wl_seat_set_user_data(AWlSeat: Pwl_seat; AUserData: Pointer);
+
 function wl_seat_get_user_data(AWlSeat: Pwl_seat): Pointer;
+
 function wl_seat_get_version(AWlSeat: Pwl_seat): UInt32;
+
 procedure wl_seat_destroy(AWlSeat: Pwl_seat);
 /// <summary>wl_seat.get_pointer: return pointer object</summary>
+
 function wl_seat_get_pointer(AWlSeat: Pwl_seat): Pwl_pointer;
 /// <summary>wl_seat.get_keyboard: return keyboard object</summary>
+
 function wl_seat_get_keyboard(AWlSeat: Pwl_seat): Pwl_keyboard;
 /// <summary>wl_seat.get_touch: return touch object</summary>
+
 function wl_seat_get_touch(AWlSeat: Pwl_seat): Pwl_touch;
 /// <summary>wl_seat.release: release the seat object</summary>
+
 procedure wl_seat_release(AWlSeat: Pwl_seat);
 
 function wl_pointer_add_listener(AWlPointer: Pwl_pointer; AListener: Pwl_pointer_listener; AData: Pointer): Integer;
+
 procedure wl_pointer_set_user_data(AWlPointer: Pwl_pointer; AUserData: Pointer);
+
 function wl_pointer_get_user_data(AWlPointer: Pwl_pointer): Pointer;
+
 function wl_pointer_get_version(AWlPointer: Pwl_pointer): UInt32;
+
 procedure wl_pointer_destroy(AWlPointer: Pwl_pointer);
 /// <summary>wl_pointer.set_cursor: set the pointer surface</summary>
+
 procedure wl_pointer_set_cursor(AWlPointer: Pwl_pointer; ASerial: UInt32; ASurface: Pwl_surface; AHotspotX: Int32; AHotspotY: Int32);
 /// <summary>wl_pointer.release: release the pointer object</summary>
+
 procedure wl_pointer_release(AWlPointer: Pwl_pointer);
 
 function wl_keyboard_add_listener(AWlKeyboard: Pwl_keyboard; AListener: Pwl_keyboard_listener; AData: Pointer): Integer;
+
 procedure wl_keyboard_set_user_data(AWlKeyboard: Pwl_keyboard; AUserData: Pointer);
+
 function wl_keyboard_get_user_data(AWlKeyboard: Pwl_keyboard): Pointer;
+
 function wl_keyboard_get_version(AWlKeyboard: Pwl_keyboard): UInt32;
+
 procedure wl_keyboard_destroy(AWlKeyboard: Pwl_keyboard);
 /// <summary>wl_keyboard.release: release the keyboard object</summary>
+
 procedure wl_keyboard_release(AWlKeyboard: Pwl_keyboard);
 
 function wl_touch_add_listener(AWlTouch: Pwl_touch; AListener: Pwl_touch_listener; AData: Pointer): Integer;
+
 procedure wl_touch_set_user_data(AWlTouch: Pwl_touch; AUserData: Pointer);
+
 function wl_touch_get_user_data(AWlTouch: Pwl_touch): Pointer;
+
 function wl_touch_get_version(AWlTouch: Pwl_touch): UInt32;
+
 procedure wl_touch_destroy(AWlTouch: Pwl_touch);
 /// <summary>wl_touch.release: release the touch object</summary>
+
 procedure wl_touch_release(AWlTouch: Pwl_touch);
 
 function wl_output_add_listener(AWlOutput: Pwl_output; AListener: Pwl_output_listener; AData: Pointer): Integer;
+
 procedure wl_output_set_user_data(AWlOutput: Pwl_output; AUserData: Pointer);
+
 function wl_output_get_user_data(AWlOutput: Pwl_output): Pointer;
+
 function wl_output_get_version(AWlOutput: Pwl_output): UInt32;
+
 procedure wl_output_destroy(AWlOutput: Pwl_output);
 /// <summary>wl_output.release: release the output object</summary>
+
 procedure wl_output_release(AWlOutput: Pwl_output);
 
 procedure wl_region_set_user_data(AWlRegion: Pwl_region; AUserData: Pointer);
+
 function wl_region_get_user_data(AWlRegion: Pwl_region): Pointer;
+
 function wl_region_get_version(AWlRegion: Pwl_region): UInt32;
 /// <summary>wl_region.destroy: destroy region</summary>
+
 procedure wl_region_destroy(AWlRegion: Pwl_region);
 /// <summary>wl_region.add: add rectangle to region</summary>
+
 procedure wl_region_add(AWlRegion: Pwl_region; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 /// <summary>wl_region.subtract: subtract rectangle from region</summary>
+
 procedure wl_region_subtract(AWlRegion: Pwl_region; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 
 procedure wl_subcompositor_set_user_data(AWlSubcompositor: Pwl_subcompositor; AUserData: Pointer);
+
 function wl_subcompositor_get_user_data(AWlSubcompositor: Pwl_subcompositor): Pointer;
+
 function wl_subcompositor_get_version(AWlSubcompositor: Pwl_subcompositor): UInt32;
 /// <summary>wl_subcompositor.destroy: unbind from the subcompositor interface</summary>
+
 procedure wl_subcompositor_destroy(AWlSubcompositor: Pwl_subcompositor);
 /// <summary>wl_subcompositor.get_subsurface: give a surface the role sub-surface</summary>
+
 function wl_subcompositor_get_subsurface(AWlSubcompositor: Pwl_subcompositor; ASurface: Pwl_surface; AParent: Pwl_surface): Pwl_subsurface;
 
 procedure wl_subsurface_set_user_data(AWlSubsurface: Pwl_subsurface; AUserData: Pointer);
+
 function wl_subsurface_get_user_data(AWlSubsurface: Pwl_subsurface): Pointer;
+
 function wl_subsurface_get_version(AWlSubsurface: Pwl_subsurface): UInt32;
 /// <summary>wl_subsurface.destroy: remove sub-surface interface</summary>
+
 procedure wl_subsurface_destroy(AWlSubsurface: Pwl_subsurface);
 /// <summary>wl_subsurface.set_position: reposition the sub-surface</summary>
+
 procedure wl_subsurface_set_position(AWlSubsurface: Pwl_subsurface; AX: Int32; AY: Int32);
 /// <summary>wl_subsurface.place_above: restack the sub-surface</summary>
+
 procedure wl_subsurface_place_above(AWlSubsurface: Pwl_subsurface; ASibling: Pwl_surface);
 /// <summary>wl_subsurface.place_below: restack the sub-surface</summary>
+
 procedure wl_subsurface_place_below(AWlSubsurface: Pwl_subsurface; ASibling: Pwl_surface);
 /// <summary>wl_subsurface.set_sync: set sub-surface to synchronized mode</summary>
+
 procedure wl_subsurface_set_sync(AWlSubsurface: Pwl_subsurface);
 /// <summary>wl_subsurface.set_desync: set sub-surface to desynchronized mode</summary>
+
 procedure wl_subsurface_set_desync(AWlSubsurface: Pwl_subsurface);
 
 procedure wl_fixes_set_user_data(AWlFixes: Pwl_fixes; AUserData: Pointer);
+
 function wl_fixes_get_user_data(AWlFixes: Pwl_fixes): Pointer;
+
 function wl_fixes_get_version(AWlFixes: Pwl_fixes): UInt32;
 /// <summary>wl_fixes.destroy: destroys this object</summary>
+
 procedure wl_fixes_destroy(AWlFixes: Pwl_fixes);
 /// <summary>wl_fixes.destroy_registry: destroy a wl_registry</summary>
+
 procedure wl_fixes_destroy_registry(AWlFixes: Pwl_fixes; ARegistry: Pwl_registry);
 
 implementation
@@ -1640,7 +1852,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_callback(WlProxyMarshalFlags(Pwl_proxy(AWlDisplay), WL_DISPLAY_SYNC_OPCODE, @wl_callback_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlDisplay)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlDisplay)), 0, @LArgs[0]));
 end;
 
 function wl_display_get_registry(AWlDisplay: Pwl_display): Pwl_registry;
@@ -1650,7 +1862,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_registry(WlProxyMarshalFlags(Pwl_proxy(AWlDisplay), WL_DISPLAY_GET_REGISTRY_OPCODE, @wl_registry_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlDisplay)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlDisplay)), 0, @LArgs[0]));
 end;
 
 function wl_registry_add_listener(AWlRegistry: Pwl_registry; AListener: Pwl_registry_listener; AData: Pointer): Integer;
@@ -1742,7 +1954,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_surface(WlProxyMarshalFlags(Pwl_proxy(AWlCompositor), WL_COMPOSITOR_CREATE_SURFACE_OPCODE, @wl_surface_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlCompositor)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlCompositor)), 0, @LArgs[0]));
 end;
 
 function wl_compositor_create_region(AWlCompositor: Pwl_compositor): Pwl_region;
@@ -1752,7 +1964,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_region(WlProxyMarshalFlags(Pwl_proxy(AWlCompositor), WL_COMPOSITOR_CREATE_REGION_OPCODE, @wl_region_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlCompositor)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlCompositor)), 0, @LArgs[0]));
 end;
 
 procedure wl_shm_pool_set_user_data(AWlShmPool: Pwl_shm_pool; AUserData: Pointer);
@@ -1782,7 +1994,7 @@ begin
   LArgs[4].i := AStride;
   LArgs[5].u := AFormat;
   Result := Pwl_buffer(WlProxyMarshalFlags(Pwl_proxy(AWlShmPool), WL_SHM_POOL_CREATE_BUFFER_OPCODE, @wl_buffer_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlShmPool)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlShmPool)), 0, @LArgs[0]));
 end;
 
 procedure wl_shm_pool_destroy(AWlShmPool: Pwl_shm_pool);
@@ -1836,7 +2048,7 @@ begin
   LArgs[1].h := AFd;
   LArgs[2].i := ASize;
   Result := Pwl_shm_pool(WlProxyMarshalFlags(Pwl_proxy(AWlShm), WL_SHM_CREATE_POOL_OPCODE, @wl_shm_pool_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlShm)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlShm)), 0, @LArgs[0]));
 end;
 
 procedure wl_shm_release(AWlShm: Pwl_shm);
@@ -2069,7 +2281,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_data_source(WlProxyMarshalFlags(Pwl_proxy(AWlDataDeviceManager), WL_DATA_DEVICE_MANAGER_CREATE_DATA_SOURCE_OPCODE, @wl_data_source_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlDataDeviceManager)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlDataDeviceManager)), 0, @LArgs[0]));
 end;
 
 function wl_data_device_manager_get_data_device(AWlDataDeviceManager: Pwl_data_device_manager; ASeat: Pwl_seat): Pwl_data_device;
@@ -2080,7 +2292,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASeat;
   Result := Pwl_data_device(WlProxyMarshalFlags(Pwl_proxy(AWlDataDeviceManager), WL_DATA_DEVICE_MANAGER_GET_DATA_DEVICE_OPCODE, @wl_data_device_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlDataDeviceManager)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlDataDeviceManager)), 0, @LArgs[0]));
 end;
 
 procedure wl_shell_set_user_data(AWlShell: Pwl_shell; AUserData: Pointer);
@@ -2111,7 +2323,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASurface;
   Result := Pwl_shell_surface(WlProxyMarshalFlags(Pwl_proxy(AWlShell), WL_SHELL_GET_SHELL_SURFACE_OPCODE, @wl_shell_surface_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlShell)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlShell)), 0, @LArgs[0]));
 end;
 
 function wl_shell_surface_add_listener(AWlShellSurface: Pwl_shell_surface; AListener: Pwl_shell_surface_listener; AData: Pointer): Integer;
@@ -2299,7 +2511,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_callback(WlProxyMarshalFlags(Pwl_proxy(AWlSurface), WL_SURFACE_FRAME_OPCODE, @wl_callback_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlSurface)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlSurface)), 0, @LArgs[0]));
 end;
 
 procedure wl_surface_set_opaque_region(AWlSurface: Pwl_surface; ARegion: Pwl_region);
@@ -2400,7 +2612,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_pointer(WlProxyMarshalFlags(Pwl_proxy(AWlSeat), WL_SEAT_GET_POINTER_OPCODE, @wl_pointer_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlSeat)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlSeat)), 0, @LArgs[0]));
 end;
 
 function wl_seat_get_keyboard(AWlSeat: Pwl_seat): Pwl_keyboard;
@@ -2410,7 +2622,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_keyboard(WlProxyMarshalFlags(Pwl_proxy(AWlSeat), WL_SEAT_GET_KEYBOARD_OPCODE, @wl_keyboard_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlSeat)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlSeat)), 0, @LArgs[0]));
 end;
 
 function wl_seat_get_touch(AWlSeat: Pwl_seat): Pwl_touch;
@@ -2420,7 +2632,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pwl_touch(WlProxyMarshalFlags(Pwl_proxy(AWlSeat), WL_SEAT_GET_TOUCH_OPCODE, @wl_touch_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlSeat)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlSeat)), 0, @LArgs[0]));
 end;
 
 procedure wl_seat_release(AWlSeat: Pwl_seat);
@@ -2654,7 +2866,7 @@ begin
   LArgs[1].o := ASurface;
   LArgs[2].o := AParent;
   Result := Pwl_subsurface(WlProxyMarshalFlags(Pwl_proxy(AWlSubcompositor), WL_SUBCOMPOSITOR_GET_SUBSURFACE_OPCODE, @wl_subsurface_interface,
-    wl_proxy_get_version(Pwl_proxy(AWlSubcompositor)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWlSubcompositor)), 0, @LArgs[0]));
 end;
 
 procedure wl_subsurface_set_user_data(AWlSubsurface: Pwl_subsurface; AUserData: Pointer);
@@ -2758,4 +2970,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

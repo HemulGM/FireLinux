@@ -37,10 +37,13 @@ type
   /// <summary>xdg_activation_v1: interface for activating surfaces</summary>
   Txdg_activation_v1 = record
   end;
+
   Pxdg_activation_v1 = ^Txdg_activation_v1;
   /// <summary>xdg_activation_token_v1: an exported activation handle</summary>
+
   Txdg_activation_token_v1 = record
   end;
+
   Pxdg_activation_token_v1 = ^Txdg_activation_token_v1;
 
 const
@@ -69,6 +72,7 @@ type
     /// <summary>the exported activation token</summary>
     done: procedure(AData: Pointer; AXdgActivationTokenV1: Pxdg_activation_token_v1; AToken: PAnsiChar); cdecl;
   end;
+
   Pxdg_activation_token_v1_listener = ^Txdg_activation_token_v1_listener;
 
 var
@@ -76,28 +80,41 @@ var
   xdg_activation_token_v1_interface: Twl_interface;
 
 procedure xdg_activation_v1_set_user_data(AXdgActivationV1: Pxdg_activation_v1; AUserData: Pointer);
+
 function xdg_activation_v1_get_user_data(AXdgActivationV1: Pxdg_activation_v1): Pointer;
+
 function xdg_activation_v1_get_version(AXdgActivationV1: Pxdg_activation_v1): UInt32;
 /// <summary>xdg_activation_v1.destroy: destroy the xdg_activation object</summary>
+
 procedure xdg_activation_v1_destroy(AXdgActivationV1: Pxdg_activation_v1);
 /// <summary>xdg_activation_v1.get_activation_token: requests a token</summary>
+
 function xdg_activation_v1_get_activation_token(AXdgActivationV1: Pxdg_activation_v1): Pxdg_activation_token_v1;
 /// <summary>xdg_activation_v1.activate: notify new interaction being available</summary>
+
 procedure xdg_activation_v1_activate(AXdgActivationV1: Pxdg_activation_v1; AToken: PAnsiChar; ASurface: Pwl_surface);
 
 function xdg_activation_token_v1_add_listener(AXdgActivationTokenV1: Pxdg_activation_token_v1; AListener: Pxdg_activation_token_v1_listener; AData: Pointer): Integer;
+
 procedure xdg_activation_token_v1_set_user_data(AXdgActivationTokenV1: Pxdg_activation_token_v1; AUserData: Pointer);
+
 function xdg_activation_token_v1_get_user_data(AXdgActivationTokenV1: Pxdg_activation_token_v1): Pointer;
+
 function xdg_activation_token_v1_get_version(AXdgActivationTokenV1: Pxdg_activation_token_v1): UInt32;
 /// <summary>xdg_activation_token_v1.set_serial: specifies the seat and serial of the activating event</summary>
+
 procedure xdg_activation_token_v1_set_serial(AXdgActivationTokenV1: Pxdg_activation_token_v1; ASerial: UInt32; ASeat: Pwl_seat);
 /// <summary>xdg_activation_token_v1.set_app_id: specifies the application being activated</summary>
+
 procedure xdg_activation_token_v1_set_app_id(AXdgActivationTokenV1: Pxdg_activation_token_v1; AAppId: PAnsiChar);
 /// <summary>xdg_activation_token_v1.set_surface: specifies the surface requesting activation</summary>
+
 procedure xdg_activation_token_v1_set_surface(AXdgActivationTokenV1: Pxdg_activation_token_v1; ASurface: Pwl_surface);
 /// <summary>xdg_activation_token_v1.commit: issues the token request</summary>
+
 procedure xdg_activation_token_v1_commit(AXdgActivationTokenV1: Pxdg_activation_token_v1);
 /// <summary>xdg_activation_token_v1.destroy: destroy the xdg_activation_token_v1 object</summary>
+
 procedure xdg_activation_token_v1_destroy(AXdgActivationTokenV1: Pxdg_activation_token_v1);
 
 implementation
@@ -185,7 +202,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pxdg_activation_token_v1(WlProxyMarshalFlags(Pwl_proxy(AXdgActivationV1), XDG_ACTIVATION_V1_GET_ACTIVATION_TOKEN_OPCODE, @xdg_activation_token_v1_interface,
-    wl_proxy_get_version(Pwl_proxy(AXdgActivationV1)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AXdgActivationV1)), 0, @LArgs[0]));
 end;
 
 procedure xdg_activation_v1_activate(AXdgActivationV1: Pxdg_activation_v1; AToken: PAnsiChar; ASurface: Pwl_surface);
@@ -264,4 +281,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

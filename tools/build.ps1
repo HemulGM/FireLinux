@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Builds a Delphi FMX program for Linux64 with FMXWayland (command line, dcclinux64, no PAServer).
 
@@ -7,15 +7,18 @@
   2. Compiles the project with dcclinux64; the unit path starts with <BuildRoot>\gen and src, so the compiler uses the
      generated FMUX.Api instead of Embarcadero's precompiled one (which loads libfmux).
   3. Links against a Linux platform SDK: a copy of a Linux system's libraries (see README.md, "Building"; the default is the
-     SDK that FMXFastCanvas's tools\make-linux-sdk.ps1 makes from the WSL distribution Ubuntu-26.04). dcclinux64 links
-     with LLVM lld; --syslibroot is the SDK, --libpath the folders with libc, crt*.o, libgcc and Delphi's librtlhelper.
-  4. With -Skia, copies the optional libsk4d.so runtime next to the program; Cairo needs only system packages.
+     SDK tools\make-linux-sdk.ps1 makes from the WSL distribution Ubuntu-22.04: glibc 2.35, so the program runs on Ubuntu
+     22.04 and later, Debian 12, Fedora, ...; -Sdk D:\LinuxSDK\ubuntu-26.04 links against Ubuntu 26.04, glibc 2.43).
+     dcclinux64 links with LLVM lld; --syslibroot is the SDK, --libpath the folders with libc, crt*.o, libgcc and Delphi's
+     librtlhelper.
+  4. Copies libsk4d.so (Skia, from $(BDS)\Redist\linux64) next to the program when it links FMX's Skia units (the map
+     file lists System.Skia.API); programs on FMX's default canvas (cairo and Pango, FMXWayland.Cairo) need none.
 
   All output goes to <BuildRoot> (default D:\Work\FMXWayland-build): bin\Linux64\<Config>\<Name>,
   dcu\Linux64\<Config>\<Name>\.
 
 .PARAMETER Skia
-  Copy Delphi's Skia runtime for programs that explicitly use FMX.Skia. The default sample uses Cairo.
+  Force copying Delphi's Skia runtime. The script also detects linked Skia units automatically.
 
 .PARAMETER FmxLinux
   Optional FMX Linux GetIt installation directory containing source\FMUX.Api.pas and lib\Release or lib\Debug.
@@ -23,6 +26,7 @@
 .EXAMPLE
   .\tools\build.ps1 -Project samples\Hello\Hello.dpr
   .\tools\build.ps1 -Project samples\Hello\Hello.dpr -Config Debug
+  .\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define NOSKIA -BuildRoot D:\Work\FMXWayland-build\cairo
 #>
 param(
   [Parameter(Mandatory = $true)] [string] $Project,
@@ -30,13 +34,20 @@ param(
   [string[]] $SearchPath = @(),
   [string[]] $Define = @(),
   [string] $BuildRoot = 'D:\Work\FMXWayland-build',
-  [string] $Sdk = 'D:\LinuxSDK\ubuntu-26.04',
-  [string] $Bds = 'C:\Program Files (x86)\Embarcadero\Studio\37.0',
+  [string] $Sdk = 'D:\LinuxSDK\ubuntu-22.04',
+  # Delphi's folder; '' = from the registry (RootDir of 37.0).
+  [string] $Bds = '',
   [string] $FmxLinux = '',
   [switch] $Skia
 )
 
 $ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot 'delphi-env.ps1')
+$DelphiEnv = Get-DelphiEnv $Bds
+$Bds = $DelphiEnv.Bds
+# FMX for Linux: in the product (Delphi 13.0) or a GetIt package (later releases); see tools\delphi-env.ps1.
+$Fmx = Find-FmxLinux $DelphiEnv $Config $FmxLinux
 
 $Root = Split-Path $PSScriptRoot -Parent
 $Dcc = Join-Path $Bds 'bin\dcclinux64.exe'
@@ -56,22 +67,18 @@ $OutDir = Join-Path $BuildRoot "bin\Linux64\$Config"
 $DcuDir = Join-Path $BuildRoot "dcu\Linux64\$Config\$Name"
 New-Item -ItemType Directory -Force -Path $GenDir, $OutDir, $DcuDir | Out-Null
 
-$fmuxSource = ''
-if ($FmxLinux) {
-  $FmxLinux = (Resolve-Path $FmxLinux).Path
-  $fmuxSource = Join-Path $FmxLinux 'source\FMUX.Api.pas'
-}
-& (Join-Path $PSScriptRoot 'gen-fmux-api.ps1') -Bds $Bds -Source $fmuxSource -Out (Join-Path $GenDir 'FMUX.Api.pas')
+& (Join-Path $PSScriptRoot 'gen-fmux-api.ps1') -Bds $Bds -Out (Join-Path $GenDir 'FMUX.Api.pas') -Source $Fmx.Source -Config $Config
 
 $env:BDS = $Bds
 $env:BDSINCLUDE = Join-Path $Bds 'include'
-$env:BDSCOMMONDIR = 'C:\Users\Public\Documents\Embarcadero\Studio\37.0'
+$env:BDSCOMMONDIR = $DelphiEnv.CommonDir
 $env:PATH = "$Bds\bin;$Bds\bin64;$env:PATH"
 
 $paths = @($GenDir, (Join-Path $Root 'src'), (Join-Path $Root 'src\Protocols'), (Split-Path $ProjectPath -Parent))
 $paths += $SearchPath | ForEach-Object { (Resolve-Path $_).Path }
 $delphiLib = Join-Path $Bds "lib\linux64\$($Config.ToLower())"
-if ($FmxLinux) { $paths += Join-Path $FmxLinux ('lib\' + $Config) }
+# The precompiled FMX for Linux units first when they come from a GetIt package.
+if ($Fmx.DcuDir -ne $delphiLib) { $paths += $Fmx.DcuDir }
 $paths += $delphiLib
 # Delphi 13 ships no FMX.Filter.res for Linux64 (FMX.Filter links it); resources are platform-independent, so the
 # Win64 one goes into a folder on the resource path.
@@ -82,7 +89,7 @@ if (-not (Test-Path (Join-Path $delphiLib 'FMX.Filter.res'))) {
   $paths += $resFix
 }
 $pathArg = ($paths -join ';')
-$libPaths = @($delphiLib, (Join-Path $Sdk 'usr\lib\x86_64-linux-gnu'), $gccDir.FullName)
+$libPaths = @($Fmx.DcuDir, $delphiLib, (Join-Path $Sdk 'usr\lib\x86_64-linux-gnu'), $gccDir.FullName)
 $defines = @($Define)
 $flags = @(
   '-B', '-Q',
@@ -107,5 +114,13 @@ $code = $LASTEXITCODE
 $out | Where-Object { "$_" -notmatch '^(Linker command line:|Embarcadero|Copyright)' } | ForEach-Object { Write-Host "$_" }
 if ($code -ne 0) { throw "dcclinux64 failed ($code)" }
 
-if ($Skia) { Copy-Item (Join-Path $Bds 'Redist\linux64\libsk4d.so') $OutDir -Force }
+# libsk4d.so only for programs with FMX's Skia units (FMX.Skia loads it at run time): the map file says whether
+# System.Skia.API was linked. Programs on FMX's default canvas (cairo, Pango) do not need it.
+$map = Join-Path $OutDir "$Name.map"
+if ($Skia -or -not (Test-Path $map) -or (Select-String -Path $map -Pattern 'System.Skia.API.o' -SimpleMatch -Quiet)) {
+  Copy-Item (Join-Path $Bds 'Redist\linux64\libsk4d.so') $OutDir -Force
+  Write-Host "libsk4d.so -> $OutDir (Skia)"
+} else {
+  Write-Host 'No Skia units linked: no libsk4d.so needed (FMX''s cairo canvas, or a canvas of its own: FastCanvas)'
+}
 Write-Host "OK -> $(Join-Path $OutDir $Name)"

@@ -3,8 +3,8 @@
 interface
 
 uses
-  System.Classes, System.SysUtils, System.Types, System.UITypes, FMX.Types, FMX.Controls, FMX.Forms,
-  FMX.Layouts, FMX.StdCtrls, FMX.Controls.Presentation;
+  System.Classes, System.SysUtils, System.Types, System.UITypes, FMX.Types,
+  FMX.Controls, FMX.Forms, FMX.Layouts, FMX.StdCtrls, FMX.Controls.Presentation;
 
 type
   TDemoWindow = class(TForm)
@@ -51,12 +51,17 @@ begin
 end;
 
 procedure TDemoWindow.CloseButtonClick(Sender: TObject);
-begin Close; end;
+begin
+  Close;
+end;
 
 procedure TDemoWindow.WindowShow(Sender: TObject);
-var Button: TButton; Point: TPointF;
+var
+  Button: TButton;
+  Point: TPointF;
 begin
-  if not FVerbose then Exit;
+  if not FVerbose then
+    Exit;
   for Button in [CloseButton, OKButton, CancelButton] do
   begin
     Point := Button.LocalToAbsolute(PointF(Button.Width / 2, Button.Height / 2));
@@ -70,11 +75,19 @@ begin
   if not FModal then
   begin
     Action := TCloseAction.caFree;
-    if FVerbose then begin Writeln('[hello] second form closed'); Flush(Output); end;
+    if FVerbose then
+    begin
+      Writeln('[hello] second form closed');
+      Flush(Output);
+    end;
   end;
 end;
 
 procedure TDemoWindow.SelfCloseTimerTimer(Sender: TObject);
-begin SelfCloseTimer.Enabled := False; ModalResult := mrRetry; end;
+begin
+  SelfCloseTimer.Enabled := False;
+  ModalResult := mrRetry;
+end;
 
 end.
+

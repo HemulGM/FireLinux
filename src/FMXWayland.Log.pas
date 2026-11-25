@@ -15,12 +15,16 @@ type
 /// <summary>True when messages of ALevel are written.</summary>
 function WlLogEnabled(const ALevel: TWlLogLevel): Boolean;
 /// <summary>Writes a message of ALevel to stderr (if that level is enabled).</summary>
+
 procedure WlLog(const ALevel: TWlLogLevel; const AMessage: string); overload;
 /// <summary>Writes a formatted message of ALevel to stderr (if that level is enabled).</summary>
+
 procedure WlLog(const ALevel: TWlLogLevel; const AFormat: string; const AArgs: array of const); overload;
 /// <summary>Writes a warning once per AKey (later calls with the same key are ignored).</summary>
+
 procedure WlLogOnce(const AKey, AMessage: string);
 /// <summary>Called by the generated stubs of FMUX.Api: notes once that an FMUX function is not implemented.</summary>
+
 procedure FmuxStubCalled(const AName: string);
 
 implementation
@@ -101,3 +105,4 @@ finalization
   FreeAndNil(GLock);
 
 end.
+

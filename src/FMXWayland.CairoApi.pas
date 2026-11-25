@@ -1,30 +1,110 @@
-﻿{ FMXWayland: system Cairo/Pango/GdkPixbuf bindings. MIT license. }
+﻿{ FMXWayland: system Cairo/Pango/GdkPixbuf bindings.
+  Written by Hemul GM. Copyright (c) 2026 Fasday and contributors. MIT license, see LICENSE. }
+
+/// <summary>Bindings of the system libraries cairo, pango, pangocairo, gdk-pixbuf, gobject and glib, loaded with
+/// dlopen on first use (LoadGraphicsLibraries): programs that never draw with FMX's cairo canvas do not need
+/// them.</summary>
 unit FMXWayland.CairoApi;
 
 interface
 
+const
+  CAIRO_FORMAT_ARGB32 = 0;
+
+const
+  CAIRO_OPERATOR_SOURCE = 1;
+
+const
+  CAIRO_ANTIALIAS_DEFAULT = 0;
+  CAIRO_ANTIALIAS_GRAY = 2;
+  CAIRO_ANTIALIAS_FAST = 4;
+  CAIRO_ANTIALIAS_BEST = 6;
+
+const
+  CAIRO_FILL_RULE_WINDING = 0;
+  CAIRO_FILL_RULE_EVEN_ODD = 1;
+
+const
+  CAIRO_EXTEND_NONE = 0;
+  CAIRO_EXTEND_REPEAT = 1;
+  CAIRO_EXTEND_PAD = 3;
+
+const
+  CAIRO_FILTER_GOOD = 1;
+  CAIRO_FILTER_NEAREST = 3;
+
+const
+  CAIRO_LINE_CAP_ROUND = 1;
+  CAIRO_LINE_CAP_SQUARE = 2;
+
+const
+  CAIRO_PATH_MOVE_TO = 0;
+  CAIRO_PATH_LINE_TO = 1;
+  CAIRO_PATH_CURVE_TO = 2;
+  CAIRO_PATH_CLOSE_PATH = 3;
+
+const
+  PANGO_SCALE = 1024;
+
+const
+  PANGO_STYLE_OBLIQUE = 1;
+  PANGO_STYLE_ITALIC = 2;
+
+const
+  PANGO_ALIGN_LEFT = 0;
+  PANGO_ALIGN_CENTER = 1;
+  PANGO_ALIGN_RIGHT = 2;
+
+const
+  PANGO_WRAP_WORD_CHAR = 2;
+
+const
+  PANGO_ELLIPSIZE_END = 3;
+
+const
+  PANGO_UNDERLINE_SINGLE = 1;
+
+const
+  GDK_COLORSPACE_RGB = 0;
+
 type
+  /// <summary>cairo_matrix_t.</summary>
   TCairoMatrix = record
     XX, YX, XY, YY, X0, Y0: Double;
   end;
+
   PCairoMatrix = ^TCairoMatrix;
+
+  /// <summary>cairo_path_data_t: a header (Kind = CAIRO_PATH_*, Length = elements including the header) followed
+  /// by its points.</summary>
   TCairoPathData = record
     case Integer of
-      0: (Kind, Length: Integer);
-      1: (X, Y: Double);
+      0:
+        (Kind, Length: Integer);
+      1:
+        (X, Y: Double);
   end;
+
   PCairoPathData = ^TCairoPathData;
+
+  /// <summary>cairo_path_t.</summary>
   TCairoPath = record
     Status: Integer;
     Data: PCairoPathData;
     Count: Integer;
   end;
+
   PCairoPath = ^TCairoPath;
+
+  /// <summary>PangoRectangle (Pango units: PANGO_SCALE per pixel).</summary>
   TPangoRectangle = record
     X, Y, Width, Height: Integer;
   end;
+
   PPangoRectangle = ^TPangoRectangle;
 
+/// <summary>Loads the libraries and their functions (once; thread-safe). Raises an exception that names what is
+/// missing.</summary>
 procedure LoadGraphicsLibraries;
 
 var
@@ -33,6 +113,7 @@ var
   cairo_surface_destroy: procedure(Surface: Pointer); cdecl;
   cairo_surface_flush: procedure(Surface: Pointer); cdecl;
   cairo_surface_status: function(Surface: Pointer): Integer; cdecl;
+  cairo_surface_create_for_rectangle: function(Target: Pointer; X, Y, Width, Height: Double): Pointer; cdecl;
   cairo_create: function(Surface: Pointer): Pointer; cdecl;
   cairo_destroy: procedure(Cr: Pointer); cdecl;
   cairo_status: function(Cr: Pointer): Integer; cdecl;
@@ -69,6 +150,7 @@ var
   cairo_set_line_width: procedure(Cr: Pointer; Width: Double); cdecl;
   cairo_get_line_width: function(Cr: Pointer): Double; cdecl;
   cairo_set_line_cap: procedure(Cr: Pointer; Cap: Integer); cdecl;
+  cairo_get_line_cap: function(Cr: Pointer): Integer; cdecl;
   cairo_set_line_join: procedure(Cr: Pointer; Join: Integer); cdecl;
   cairo_set_dash: procedure(Cr: Pointer; Dashes: PDouble; Count: Integer; Offset: Double); cdecl;
   cairo_pattern_create_linear: function(X1, Y1, X2, Y2: Double): Pointer; cdecl;
@@ -81,6 +163,9 @@ var
   cairo_pattern_destroy: procedure(Pattern: Pointer); cdecl;
   cairo_copy_path: function(Cr: Pointer): PCairoPath; cdecl;
   cairo_path_destroy: procedure(Path: PCairoPath); cdecl;
+  cairo_font_options_create: function(): Pointer; cdecl;
+  cairo_font_options_destroy: procedure(Options: Pointer); cdecl;
+  cairo_font_options_set_antialias: procedure(Options: Pointer; AA: Integer); cdecl;
   pango_font_description_new: function(): Pointer; cdecl;
   pango_font_description_free: procedure(Desc: Pointer); cdecl;
   pango_font_description_set_family: procedure(Desc: Pointer; Family: PAnsiChar); cdecl;
@@ -88,6 +173,8 @@ var
   pango_font_description_set_weight: procedure(Desc: Pointer; Weight: Integer); cdecl;
   pango_font_description_set_style: procedure(Desc: Pointer; Style: Integer); cdecl;
   pango_layout_set_font_description: procedure(Layout, Desc: Pointer); cdecl;
+  pango_layout_get_context: function(Layout: Pointer): Pointer; cdecl;
+  pango_layout_context_changed: procedure(Layout: Pointer); cdecl;
   pango_layout_set_text: procedure(Layout: Pointer; Text: PAnsiChar; Length: Integer); cdecl;
   pango_layout_set_width: procedure(Layout: Pointer; Width: Integer); cdecl;
   pango_layout_set_height: procedure(Layout: Pointer; Height: Integer); cdecl;
@@ -109,6 +196,7 @@ var
   pango_cairo_show_layout: procedure(Cr, Layout: Pointer); cdecl;
   pango_cairo_layout_path: procedure(Cr, Layout: Pointer); cdecl;
   pango_cairo_font_map_get_default: function(): Pointer; cdecl;
+  pango_cairo_context_set_font_options: procedure(Context, Options: Pointer); cdecl;
   gdk_pixbuf_loader_new: function(): Pointer; cdecl;
   gdk_pixbuf_loader_write: function(Loader, Buffer: Pointer; Count: NativeUInt; Error: PPointer): Integer; cdecl;
   gdk_pixbuf_loader_close: function(Loader: Pointer; Error: PPointer): Integer; cdecl;
@@ -157,6 +245,8 @@ procedure LoadGraphicsLibraries;
   end;
 
 begin
+  if GLoaded then
+    Exit;
   GLock.Acquire;
   try
     if GLoaded then
@@ -167,6 +257,7 @@ begin
     cairo_surface_destroy := Sym(H_cairo, 'cairo_surface_destroy');
     cairo_surface_flush := Sym(H_cairo, 'cairo_surface_flush');
     cairo_surface_status := Sym(H_cairo, 'cairo_surface_status');
+    cairo_surface_create_for_rectangle := Sym(H_cairo, 'cairo_surface_create_for_rectangle');
     cairo_create := Sym(H_cairo, 'cairo_create');
     cairo_destroy := Sym(H_cairo, 'cairo_destroy');
     cairo_status := Sym(H_cairo, 'cairo_status');
@@ -203,6 +294,7 @@ begin
     cairo_set_line_width := Sym(H_cairo, 'cairo_set_line_width');
     cairo_get_line_width := Sym(H_cairo, 'cairo_get_line_width');
     cairo_set_line_cap := Sym(H_cairo, 'cairo_set_line_cap');
+    cairo_get_line_cap := Sym(H_cairo, 'cairo_get_line_cap');
     cairo_set_line_join := Sym(H_cairo, 'cairo_set_line_join');
     cairo_set_dash := Sym(H_cairo, 'cairo_set_dash');
     cairo_pattern_create_linear := Sym(H_cairo, 'cairo_pattern_create_linear');
@@ -215,6 +307,9 @@ begin
     cairo_pattern_destroy := Sym(H_cairo, 'cairo_pattern_destroy');
     cairo_copy_path := Sym(H_cairo, 'cairo_copy_path');
     cairo_path_destroy := Sym(H_cairo, 'cairo_path_destroy');
+    cairo_font_options_create := Sym(H_cairo, 'cairo_font_options_create');
+    cairo_font_options_destroy := Sym(H_cairo, 'cairo_font_options_destroy');
+    cairo_font_options_set_antialias := Sym(H_cairo, 'cairo_font_options_set_antialias');
     OpenLibrary(H_pango, 'libpango-1.0.so.0');
     pango_font_description_new := Sym(H_pango, 'pango_font_description_new');
     pango_font_description_free := Sym(H_pango, 'pango_font_description_free');
@@ -223,6 +318,8 @@ begin
     pango_font_description_set_weight := Sym(H_pango, 'pango_font_description_set_weight');
     pango_font_description_set_style := Sym(H_pango, 'pango_font_description_set_style');
     pango_layout_set_font_description := Sym(H_pango, 'pango_layout_set_font_description');
+    pango_layout_get_context := Sym(H_pango, 'pango_layout_get_context');
+    pango_layout_context_changed := Sym(H_pango, 'pango_layout_context_changed');
     pango_layout_set_text := Sym(H_pango, 'pango_layout_set_text');
     pango_layout_set_width := Sym(H_pango, 'pango_layout_set_width');
     pango_layout_set_height := Sym(H_pango, 'pango_layout_set_height');
@@ -245,6 +342,7 @@ begin
     pango_cairo_show_layout := Sym(H_pangocairo, 'pango_cairo_show_layout');
     pango_cairo_layout_path := Sym(H_pangocairo, 'pango_cairo_layout_path');
     pango_cairo_font_map_get_default := Sym(H_pangocairo, 'pango_cairo_font_map_get_default');
+    pango_cairo_context_set_font_options := Sym(H_pangocairo, 'pango_cairo_context_set_font_options');
     OpenLibrary(H_pixbuf, 'libgdk_pixbuf-2.0.so.0');
     gdk_pixbuf_loader_new := Sym(H_pixbuf, 'gdk_pixbuf_loader_new');
     gdk_pixbuf_loader_write := Sym(H_pixbuf, 'gdk_pixbuf_loader_write');
@@ -275,3 +373,4 @@ finalization
   GLock.Free;
   // Handles live until process exit: FMX finalization can still destroy canvases and text layouts.
 end.
+

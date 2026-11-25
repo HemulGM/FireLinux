@@ -35,10 +35,13 @@ type
   /// <summary>wp_cursor_shape_manager_v1: cursor shape manager</summary>
   Twp_cursor_shape_manager_v1 = record
   end;
+
   Pwp_cursor_shape_manager_v1 = ^Twp_cursor_shape_manager_v1;
   /// <summary>wp_cursor_shape_device_v1: cursor shape for a device</summary>
+
   Twp_cursor_shape_device_v1 = record
   end;
+
   Pwp_cursor_shape_device_v1 = ^Twp_cursor_shape_device_v1;
 
 const
@@ -98,21 +101,30 @@ var
   wp_cursor_shape_device_v1_interface: Twl_interface;
 
 procedure wp_cursor_shape_manager_v1_set_user_data(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1; AUserData: Pointer);
+
 function wp_cursor_shape_manager_v1_get_user_data(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1): Pointer;
+
 function wp_cursor_shape_manager_v1_get_version(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1): UInt32;
 /// <summary>wp_cursor_shape_manager_v1.destroy: destroy the manager</summary>
+
 procedure wp_cursor_shape_manager_v1_destroy(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1);
 /// <summary>wp_cursor_shape_manager_v1.get_pointer: manage the cursor shape of a pointer device</summary>
+
 function wp_cursor_shape_manager_v1_get_pointer(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1; APointer: Pwl_pointer): Pwp_cursor_shape_device_v1;
 /// <summary>wp_cursor_shape_manager_v1.get_tablet_tool_v2: manage the cursor shape of a tablet tool device</summary>
+
 function wp_cursor_shape_manager_v1_get_tablet_tool_v2(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1; ATabletTool: Pzwp_tablet_tool_v2): Pwp_cursor_shape_device_v1;
 
 procedure wp_cursor_shape_device_v1_set_user_data(AWpCursorShapeDeviceV1: Pwp_cursor_shape_device_v1; AUserData: Pointer);
+
 function wp_cursor_shape_device_v1_get_user_data(AWpCursorShapeDeviceV1: Pwp_cursor_shape_device_v1): Pointer;
+
 function wp_cursor_shape_device_v1_get_version(AWpCursorShapeDeviceV1: Pwp_cursor_shape_device_v1): UInt32;
 /// <summary>wp_cursor_shape_device_v1.destroy: destroy the cursor shape device</summary>
+
 procedure wp_cursor_shape_device_v1_destroy(AWpCursorShapeDeviceV1: Pwp_cursor_shape_device_v1);
 /// <summary>wp_cursor_shape_device_v1.set_shape: set device cursor to the shape</summary>
+
 procedure wp_cursor_shape_device_v1_set_shape(AWpCursorShapeDeviceV1: Pwp_cursor_shape_device_v1; ASerial: UInt32; AShape: UInt32);
 
 implementation
@@ -188,7 +200,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := APointer;
   Result := Pwp_cursor_shape_device_v1(WlProxyMarshalFlags(Pwl_proxy(AWpCursorShapeManagerV1), WP_CURSOR_SHAPE_MANAGER_V1_GET_POINTER_OPCODE, @wp_cursor_shape_device_v1_interface,
-    wl_proxy_get_version(Pwl_proxy(AWpCursorShapeManagerV1)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWpCursorShapeManagerV1)), 0, @LArgs[0]));
 end;
 
 function wp_cursor_shape_manager_v1_get_tablet_tool_v2(AWpCursorShapeManagerV1: Pwp_cursor_shape_manager_v1; ATabletTool: Pzwp_tablet_tool_v2): Pwp_cursor_shape_device_v1;
@@ -199,7 +211,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ATabletTool;
   Result := Pwp_cursor_shape_device_v1(WlProxyMarshalFlags(Pwl_proxy(AWpCursorShapeManagerV1), WP_CURSOR_SHAPE_MANAGER_V1_GET_TABLET_TOOL_V2_OPCODE, @wp_cursor_shape_device_v1_interface,
-    wl_proxy_get_version(Pwl_proxy(AWpCursorShapeManagerV1)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AWpCursorShapeManagerV1)), 0, @LArgs[0]));
 end;
 
 procedure wp_cursor_shape_device_v1_set_user_data(AWpCursorShapeDeviceV1: Pwp_cursor_shape_device_v1; AUserData: Pointer);
@@ -237,4 +249,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

@@ -38649,8 +38649,8 @@ object HelloForm: THelloForm
             Size.Width = 944.000000000000000000
             Size.Height = 120.000000000000000000
             Size.PlatformDefault = False
-            Viewport.Width = 926.000000000000000000
-            Viewport.Height = 108.000000000000000000
+            Viewport.Width = 944.000000000000000000
+            Viewport.Height = 120.000000000000000000
           end
         end
       end
@@ -39874,8 +39874,8 @@ object HelloForm: THelloForm
             Size.Width = 944.000000000000000000
             Size.Height = 180.000000000000000000
             Size.PlatformDefault = False
-            Viewport.Width = 926.000000000000000000
-            Viewport.Height = 168.000000000000000000
+            Viewport.Width = 944.000000000000000000
+            Viewport.Height = 180.000000000000000000
           end
         end
       end
@@ -40008,8 +40008,8 @@ object HelloForm: THelloForm
             Size.Width = 944.000000000000000000
             Size.Height = 150.000000000000000000
             Size.PlatformDefault = False
-            Viewport.Width = 926.000000000000000000
-            Viewport.Height = 138.000000000000000000
+            Viewport.Width = 944.000000000000000000
+            Viewport.Height = 150.000000000000000000
           end
         end
       end
@@ -40154,8 +40154,8 @@ object HelloForm: THelloForm
             Size.Width = 944.000000000000000000
             Size.Height = 160.000000000000000000
             Size.PlatformDefault = False
-            Viewport.Width = 926.000000000000000000
-            Viewport.Height = 148.000000000000000000
+            Viewport.Width = 944.000000000000000000
+            Viewport.Height = 160.000000000000000000
           end
         end
       end

@@ -39,38 +39,55 @@ type
   /// <summary>zwp_tablet_manager_v2: controller object for graphic tablet devices</summary>
   Tzwp_tablet_manager_v2 = record
   end;
+
   Pzwp_tablet_manager_v2 = ^Tzwp_tablet_manager_v2;
   /// <summary>zwp_tablet_seat_v2: controller object for graphic tablet devices of a seat</summary>
+
   Tzwp_tablet_seat_v2 = record
   end;
+
   Pzwp_tablet_seat_v2 = ^Tzwp_tablet_seat_v2;
   /// <summary>zwp_tablet_tool_v2: a physical tablet tool</summary>
+
   Tzwp_tablet_tool_v2 = record
   end;
+
   Pzwp_tablet_tool_v2 = ^Tzwp_tablet_tool_v2;
   /// <summary>zwp_tablet_v2: graphics tablet device</summary>
+
   Tzwp_tablet_v2 = record
   end;
+
   Pzwp_tablet_v2 = ^Tzwp_tablet_v2;
   /// <summary>zwp_tablet_pad_ring_v2: pad ring</summary>
+
   Tzwp_tablet_pad_ring_v2 = record
   end;
+
   Pzwp_tablet_pad_ring_v2 = ^Tzwp_tablet_pad_ring_v2;
   /// <summary>zwp_tablet_pad_strip_v2: pad strip</summary>
+
   Tzwp_tablet_pad_strip_v2 = record
   end;
+
   Pzwp_tablet_pad_strip_v2 = ^Tzwp_tablet_pad_strip_v2;
   /// <summary>zwp_tablet_pad_group_v2: a set of buttons, rings and strips</summary>
+
   Tzwp_tablet_pad_group_v2 = record
   end;
+
   Pzwp_tablet_pad_group_v2 = ^Tzwp_tablet_pad_group_v2;
   /// <summary>zwp_tablet_pad_v2: a set of buttons, rings, strips and dials</summary>
+
   Tzwp_tablet_pad_v2 = record
   end;
+
   Pzwp_tablet_pad_v2 = ^Tzwp_tablet_pad_v2;
   /// <summary>zwp_tablet_pad_dial_v2: pad dial</summary>
+
   Tzwp_tablet_pad_dial_v2 = record
   end;
+
   Pzwp_tablet_pad_dial_v2 = ^Tzwp_tablet_pad_dial_v2;
 
 const
@@ -201,8 +218,10 @@ type
     /// <summary>new pad notification</summary>
     pad_added: procedure(AData: Pointer; AZwpTabletSeatV2: Pzwp_tablet_seat_v2; AId: Pzwp_tablet_pad_v2); cdecl;
   end;
+
   Pzwp_tablet_seat_v2_listener = ^Tzwp_tablet_seat_v2_listener;
   /// <summary>Events of zwp_tablet_tool_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_tool_v2_listener = record
     /// <summary>tool type</summary>
     &type: procedure(AData: Pointer; AZwpTabletToolV2: Pzwp_tablet_tool_v2; AToolType: UInt32); cdecl;
@@ -243,8 +262,10 @@ type
     /// <summary>frame event</summary>
     frame: procedure(AData: Pointer; AZwpTabletToolV2: Pzwp_tablet_tool_v2; ATime: UInt32); cdecl;
   end;
+
   Pzwp_tablet_tool_v2_listener = ^Tzwp_tablet_tool_v2_listener;
   /// <summary>Events of zwp_tablet_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_v2_listener = record
     /// <summary>tablet device name</summary>
     name: procedure(AData: Pointer; AZwpTabletV2: Pzwp_tablet_v2; AName: PAnsiChar); cdecl;
@@ -259,8 +280,10 @@ type
     /// <summary>tablet device bus type</summary>
     bustype: procedure(AData: Pointer; AZwpTabletV2: Pzwp_tablet_v2; ABustype: UInt32); cdecl;
   end;
+
   Pzwp_tablet_v2_listener = ^Tzwp_tablet_v2_listener;
   /// <summary>Events of zwp_tablet_pad_ring_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_pad_ring_v2_listener = record
     /// <summary>ring event source</summary>
     source: procedure(AData: Pointer; AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2; ASource: UInt32); cdecl;
@@ -271,8 +294,10 @@ type
     /// <summary>end of a ring event sequence</summary>
     frame: procedure(AData: Pointer; AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2; ATime: UInt32); cdecl;
   end;
+
   Pzwp_tablet_pad_ring_v2_listener = ^Tzwp_tablet_pad_ring_v2_listener;
   /// <summary>Events of zwp_tablet_pad_strip_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_pad_strip_v2_listener = record
     /// <summary>strip event source</summary>
     source: procedure(AData: Pointer; AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2; ASource: UInt32); cdecl;
@@ -283,8 +308,10 @@ type
     /// <summary>end of a strip event sequence</summary>
     frame: procedure(AData: Pointer; AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2; ATime: UInt32); cdecl;
   end;
+
   Pzwp_tablet_pad_strip_v2_listener = ^Tzwp_tablet_pad_strip_v2_listener;
   /// <summary>Events of zwp_tablet_pad_group_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_pad_group_v2_listener = record
     /// <summary>buttons announced</summary>
     buttons: procedure(AData: Pointer; AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2; AButtons: Pwl_array); cdecl;
@@ -301,8 +328,10 @@ type
     /// <summary>dial announced</summary>
     dial: procedure(AData: Pointer; AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2; ADial: Pzwp_tablet_pad_dial_v2); cdecl;
   end;
+
   Pzwp_tablet_pad_group_v2_listener = ^Tzwp_tablet_pad_group_v2_listener;
   /// <summary>Events of zwp_tablet_pad_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_pad_v2_listener = record
     /// <summary>group announced</summary>
     group: procedure(AData: Pointer; AZwpTabletPadV2: Pzwp_tablet_pad_v2; APadGroup: Pzwp_tablet_pad_group_v2); cdecl;
@@ -321,14 +350,17 @@ type
     /// <summary>pad removed event</summary>
     removed: procedure(AData: Pointer; AZwpTabletPadV2: Pzwp_tablet_pad_v2); cdecl;
   end;
+
   Pzwp_tablet_pad_v2_listener = ^Tzwp_tablet_pad_v2_listener;
   /// <summary>Events of zwp_tablet_pad_dial_v2 (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Tzwp_tablet_pad_dial_v2_listener = record
     /// <summary>delta movement</summary>
     delta: procedure(AData: Pointer; AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2; AValue120: Int32); cdecl;
     /// <summary>end of a dial event sequence</summary>
     frame: procedure(AData: Pointer; AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2; ATime: UInt32); cdecl;
   end;
+
   Pzwp_tablet_pad_dial_v2_listener = ^Tzwp_tablet_pad_dial_v2_listener;
 
 var
@@ -343,77 +375,118 @@ var
   zwp_tablet_pad_dial_v2_interface: Twl_interface;
 
 procedure zwp_tablet_manager_v2_set_user_data(AZwpTabletManagerV2: Pzwp_tablet_manager_v2; AUserData: Pointer);
+
 function zwp_tablet_manager_v2_get_user_data(AZwpTabletManagerV2: Pzwp_tablet_manager_v2): Pointer;
+
 function zwp_tablet_manager_v2_get_version(AZwpTabletManagerV2: Pzwp_tablet_manager_v2): UInt32;
 /// <summary>zwp_tablet_manager_v2.get_tablet_seat: get the tablet seat</summary>
+
 function zwp_tablet_manager_v2_get_tablet_seat(AZwpTabletManagerV2: Pzwp_tablet_manager_v2; ASeat: Pwl_seat): Pzwp_tablet_seat_v2;
 /// <summary>zwp_tablet_manager_v2.destroy: release the memory for the tablet manager object</summary>
+
 procedure zwp_tablet_manager_v2_destroy(AZwpTabletManagerV2: Pzwp_tablet_manager_v2);
 
 function zwp_tablet_seat_v2_add_listener(AZwpTabletSeatV2: Pzwp_tablet_seat_v2; AListener: Pzwp_tablet_seat_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_seat_v2_set_user_data(AZwpTabletSeatV2: Pzwp_tablet_seat_v2; AUserData: Pointer);
+
 function zwp_tablet_seat_v2_get_user_data(AZwpTabletSeatV2: Pzwp_tablet_seat_v2): Pointer;
+
 function zwp_tablet_seat_v2_get_version(AZwpTabletSeatV2: Pzwp_tablet_seat_v2): UInt32;
 /// <summary>zwp_tablet_seat_v2.destroy: release the memory for the tablet seat object</summary>
+
 procedure zwp_tablet_seat_v2_destroy(AZwpTabletSeatV2: Pzwp_tablet_seat_v2);
 
 function zwp_tablet_tool_v2_add_listener(AZwpTabletToolV2: Pzwp_tablet_tool_v2; AListener: Pzwp_tablet_tool_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_tool_v2_set_user_data(AZwpTabletToolV2: Pzwp_tablet_tool_v2; AUserData: Pointer);
+
 function zwp_tablet_tool_v2_get_user_data(AZwpTabletToolV2: Pzwp_tablet_tool_v2): Pointer;
+
 function zwp_tablet_tool_v2_get_version(AZwpTabletToolV2: Pzwp_tablet_tool_v2): UInt32;
 /// <summary>zwp_tablet_tool_v2.set_cursor: set the tablet tool's surface</summary>
+
 procedure zwp_tablet_tool_v2_set_cursor(AZwpTabletToolV2: Pzwp_tablet_tool_v2; ASerial: UInt32; ASurface: Pwl_surface; AHotspotX: Int32; AHotspotY: Int32);
 /// <summary>zwp_tablet_tool_v2.destroy: destroy the tool object</summary>
+
 procedure zwp_tablet_tool_v2_destroy(AZwpTabletToolV2: Pzwp_tablet_tool_v2);
 
 function zwp_tablet_v2_add_listener(AZwpTabletV2: Pzwp_tablet_v2; AListener: Pzwp_tablet_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_v2_set_user_data(AZwpTabletV2: Pzwp_tablet_v2; AUserData: Pointer);
+
 function zwp_tablet_v2_get_user_data(AZwpTabletV2: Pzwp_tablet_v2): Pointer;
+
 function zwp_tablet_v2_get_version(AZwpTabletV2: Pzwp_tablet_v2): UInt32;
 /// <summary>zwp_tablet_v2.destroy: destroy the tablet object</summary>
+
 procedure zwp_tablet_v2_destroy(AZwpTabletV2: Pzwp_tablet_v2);
 
 function zwp_tablet_pad_ring_v2_add_listener(AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2; AListener: Pzwp_tablet_pad_ring_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_pad_ring_v2_set_user_data(AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2; AUserData: Pointer);
+
 function zwp_tablet_pad_ring_v2_get_user_data(AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2): Pointer;
+
 function zwp_tablet_pad_ring_v2_get_version(AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2): UInt32;
 /// <summary>zwp_tablet_pad_ring_v2.set_feedback: set compositor feedback</summary>
+
 procedure zwp_tablet_pad_ring_v2_set_feedback(AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2; ADescription: PAnsiChar; ASerial: UInt32);
 /// <summary>zwp_tablet_pad_ring_v2.destroy: destroy the ring object</summary>
+
 procedure zwp_tablet_pad_ring_v2_destroy(AZwpTabletPadRingV2: Pzwp_tablet_pad_ring_v2);
 
 function zwp_tablet_pad_strip_v2_add_listener(AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2; AListener: Pzwp_tablet_pad_strip_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_pad_strip_v2_set_user_data(AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2; AUserData: Pointer);
+
 function zwp_tablet_pad_strip_v2_get_user_data(AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2): Pointer;
+
 function zwp_tablet_pad_strip_v2_get_version(AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2): UInt32;
 /// <summary>zwp_tablet_pad_strip_v2.set_feedback: set compositor feedback</summary>
+
 procedure zwp_tablet_pad_strip_v2_set_feedback(AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2; ADescription: PAnsiChar; ASerial: UInt32);
 /// <summary>zwp_tablet_pad_strip_v2.destroy: destroy the strip object</summary>
+
 procedure zwp_tablet_pad_strip_v2_destroy(AZwpTabletPadStripV2: Pzwp_tablet_pad_strip_v2);
 
 function zwp_tablet_pad_group_v2_add_listener(AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2; AListener: Pzwp_tablet_pad_group_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_pad_group_v2_set_user_data(AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2; AUserData: Pointer);
+
 function zwp_tablet_pad_group_v2_get_user_data(AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2): Pointer;
+
 function zwp_tablet_pad_group_v2_get_version(AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2): UInt32;
 /// <summary>zwp_tablet_pad_group_v2.destroy: destroy the pad object</summary>
+
 procedure zwp_tablet_pad_group_v2_destroy(AZwpTabletPadGroupV2: Pzwp_tablet_pad_group_v2);
 
 function zwp_tablet_pad_v2_add_listener(AZwpTabletPadV2: Pzwp_tablet_pad_v2; AListener: Pzwp_tablet_pad_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_pad_v2_set_user_data(AZwpTabletPadV2: Pzwp_tablet_pad_v2; AUserData: Pointer);
+
 function zwp_tablet_pad_v2_get_user_data(AZwpTabletPadV2: Pzwp_tablet_pad_v2): Pointer;
+
 function zwp_tablet_pad_v2_get_version(AZwpTabletPadV2: Pzwp_tablet_pad_v2): UInt32;
 /// <summary>zwp_tablet_pad_v2.set_feedback: set compositor feedback</summary>
+
 procedure zwp_tablet_pad_v2_set_feedback(AZwpTabletPadV2: Pzwp_tablet_pad_v2; AButton: UInt32; ADescription: PAnsiChar; ASerial: UInt32);
 /// <summary>zwp_tablet_pad_v2.destroy: destroy the pad object</summary>
+
 procedure zwp_tablet_pad_v2_destroy(AZwpTabletPadV2: Pzwp_tablet_pad_v2);
 
 function zwp_tablet_pad_dial_v2_add_listener(AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2; AListener: Pzwp_tablet_pad_dial_v2_listener; AData: Pointer): Integer;
+
 procedure zwp_tablet_pad_dial_v2_set_user_data(AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2; AUserData: Pointer);
+
 function zwp_tablet_pad_dial_v2_get_user_data(AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2): Pointer;
+
 function zwp_tablet_pad_dial_v2_get_version(AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2): UInt32;
 /// <summary>zwp_tablet_pad_dial_v2.set_feedback: set compositor feedback</summary>
+
 procedure zwp_tablet_pad_dial_v2_set_feedback(AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2; ADescription: PAnsiChar; ASerial: UInt32);
 /// <summary>zwp_tablet_pad_dial_v2.destroy: destroy the dial object</summary>
+
 procedure zwp_tablet_pad_dial_v2_destroy(AZwpTabletPadDialV2: Pzwp_tablet_pad_dial_v2);
 
 implementation
@@ -738,7 +811,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASeat;
   Result := Pzwp_tablet_seat_v2(WlProxyMarshalFlags(Pwl_proxy(AZwpTabletManagerV2), ZWP_TABLET_MANAGER_V2_GET_TABLET_SEAT_OPCODE, @zwp_tablet_seat_v2_interface,
-    wl_proxy_get_version(Pwl_proxy(AZwpTabletManagerV2)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AZwpTabletManagerV2)), 0, @LArgs[0]));
 end;
 
 procedure zwp_tablet_manager_v2_destroy(AZwpTabletManagerV2: Pzwp_tablet_manager_v2);
@@ -1028,4 +1101,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

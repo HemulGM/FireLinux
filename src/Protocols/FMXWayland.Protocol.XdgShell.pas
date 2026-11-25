@@ -41,22 +41,31 @@ type
   /// <summary>xdg_wm_base: create desktop-style surfaces</summary>
   Txdg_wm_base = record
   end;
+
   Pxdg_wm_base = ^Txdg_wm_base;
   /// <summary>xdg_positioner: child surface positioner</summary>
+
   Txdg_positioner = record
   end;
+
   Pxdg_positioner = ^Txdg_positioner;
   /// <summary>xdg_surface: desktop user interface surface base interface</summary>
+
   Txdg_surface = record
   end;
+
   Pxdg_surface = ^Txdg_surface;
   /// <summary>xdg_toplevel: toplevel surface</summary>
+
   Txdg_toplevel = record
   end;
+
   Pxdg_toplevel = ^Txdg_toplevel;
   /// <summary>xdg_popup: short-lived, popup surfaces for menus</summary>
+
   Txdg_popup = record
   end;
+
   Pxdg_popup = ^Txdg_popup;
 
 const
@@ -229,14 +238,18 @@ type
     /// <summary>check if the client is alive</summary>
     ping: procedure(AData: Pointer; AXdgWmBase: Pxdg_wm_base; ASerial: UInt32); cdecl;
   end;
+
   Pxdg_wm_base_listener = ^Txdg_wm_base_listener;
   /// <summary>Events of xdg_surface (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Txdg_surface_listener = record
     /// <summary>suggest a surface change</summary>
     configure: procedure(AData: Pointer; AXdgSurface: Pxdg_surface; ASerial: UInt32); cdecl;
   end;
+
   Pxdg_surface_listener = ^Txdg_surface_listener;
   /// <summary>Events of xdg_toplevel (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Txdg_toplevel_listener = record
     /// <summary>suggest a surface change</summary>
     configure: procedure(AData: Pointer; AXdgToplevel: Pxdg_toplevel; AWidth: Int32; AHeight: Int32; AStates: Pwl_array); cdecl;
@@ -247,8 +260,10 @@ type
     /// <summary>compositor capabilities</summary>
     wm_capabilities: procedure(AData: Pointer; AXdgToplevel: Pxdg_toplevel; ACapabilities: Pwl_array); cdecl;
   end;
+
   Pxdg_toplevel_listener = ^Txdg_toplevel_listener;
   /// <summary>Events of xdg_popup (wl_proxy_add_listener): every field must be assigned.</summary>
+
   Txdg_popup_listener = record
     /// <summary>configure the popup surface</summary>
     configure: procedure(AData: Pointer; AXdgPopup: Pxdg_popup; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32); cdecl;
@@ -257,6 +272,7 @@ type
     /// <summary>signal the completion of a repositioned request</summary>
     repositioned: procedure(AData: Pointer; AXdgPopup: Pxdg_popup; AToken: UInt32); cdecl;
   end;
+
   Pxdg_popup_listener = ^Txdg_popup_listener;
 
 var
@@ -267,98 +283,148 @@ var
   xdg_popup_interface: Twl_interface;
 
 function xdg_wm_base_add_listener(AXdgWmBase: Pxdg_wm_base; AListener: Pxdg_wm_base_listener; AData: Pointer): Integer;
+
 procedure xdg_wm_base_set_user_data(AXdgWmBase: Pxdg_wm_base; AUserData: Pointer);
+
 function xdg_wm_base_get_user_data(AXdgWmBase: Pxdg_wm_base): Pointer;
+
 function xdg_wm_base_get_version(AXdgWmBase: Pxdg_wm_base): UInt32;
 /// <summary>xdg_wm_base.destroy: destroy xdg_wm_base</summary>
+
 procedure xdg_wm_base_destroy(AXdgWmBase: Pxdg_wm_base);
 /// <summary>xdg_wm_base.create_positioner: create a positioner object</summary>
+
 function xdg_wm_base_create_positioner(AXdgWmBase: Pxdg_wm_base): Pxdg_positioner;
 /// <summary>xdg_wm_base.get_xdg_surface: create a shell surface from a surface</summary>
+
 function xdg_wm_base_get_xdg_surface(AXdgWmBase: Pxdg_wm_base; ASurface: Pwl_surface): Pxdg_surface;
 /// <summary>xdg_wm_base.pong: respond to a ping event</summary>
+
 procedure xdg_wm_base_pong(AXdgWmBase: Pxdg_wm_base; ASerial: UInt32);
 
 procedure xdg_positioner_set_user_data(AXdgPositioner: Pxdg_positioner; AUserData: Pointer);
+
 function xdg_positioner_get_user_data(AXdgPositioner: Pxdg_positioner): Pointer;
+
 function xdg_positioner_get_version(AXdgPositioner: Pxdg_positioner): UInt32;
 /// <summary>xdg_positioner.destroy: destroy the xdg_positioner object</summary>
+
 procedure xdg_positioner_destroy(AXdgPositioner: Pxdg_positioner);
 /// <summary>xdg_positioner.set_size: set the size of the to-be positioned rectangle</summary>
+
 procedure xdg_positioner_set_size(AXdgPositioner: Pxdg_positioner; AWidth: Int32; AHeight: Int32);
 /// <summary>xdg_positioner.set_anchor_rect: set the anchor rectangle within the parent surface</summary>
+
 procedure xdg_positioner_set_anchor_rect(AXdgPositioner: Pxdg_positioner; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 /// <summary>xdg_positioner.set_anchor: set anchor rectangle anchor</summary>
+
 procedure xdg_positioner_set_anchor(AXdgPositioner: Pxdg_positioner; AAnchor: UInt32);
 /// <summary>xdg_positioner.set_gravity: set child surface gravity</summary>
+
 procedure xdg_positioner_set_gravity(AXdgPositioner: Pxdg_positioner; AGravity: UInt32);
 /// <summary>xdg_positioner.set_constraint_adjustment: set the adjustment to be done when constrained</summary>
+
 procedure xdg_positioner_set_constraint_adjustment(AXdgPositioner: Pxdg_positioner; AConstraintAdjustment: UInt32);
 /// <summary>xdg_positioner.set_offset: set surface position offset</summary>
+
 procedure xdg_positioner_set_offset(AXdgPositioner: Pxdg_positioner; AX: Int32; AY: Int32);
 /// <summary>xdg_positioner.set_reactive: continuously reconstrain the surface</summary>
+
 procedure xdg_positioner_set_reactive(AXdgPositioner: Pxdg_positioner);
+
 procedure xdg_positioner_set_parent_size(AXdgPositioner: Pxdg_positioner; AParentWidth: Int32; AParentHeight: Int32);
 /// <summary>xdg_positioner.set_parent_configure: set parent configure this is a response to</summary>
+
 procedure xdg_positioner_set_parent_configure(AXdgPositioner: Pxdg_positioner; ASerial: UInt32);
 
 function xdg_surface_add_listener(AXdgSurface: Pxdg_surface; AListener: Pxdg_surface_listener; AData: Pointer): Integer;
+
 procedure xdg_surface_set_user_data(AXdgSurface: Pxdg_surface; AUserData: Pointer);
+
 function xdg_surface_get_user_data(AXdgSurface: Pxdg_surface): Pointer;
+
 function xdg_surface_get_version(AXdgSurface: Pxdg_surface): UInt32;
 /// <summary>xdg_surface.destroy: destroy the xdg_surface</summary>
+
 procedure xdg_surface_destroy(AXdgSurface: Pxdg_surface);
 /// <summary>xdg_surface.get_toplevel: assign the xdg_toplevel surface role</summary>
+
 function xdg_surface_get_toplevel(AXdgSurface: Pxdg_surface): Pxdg_toplevel;
 /// <summary>xdg_surface.get_popup: assign the xdg_popup surface role</summary>
+
 function xdg_surface_get_popup(AXdgSurface: Pxdg_surface; AParent: Pxdg_surface; APositioner: Pxdg_positioner): Pxdg_popup;
 /// <summary>xdg_surface.set_window_geometry: set the new window geometry</summary>
+
 procedure xdg_surface_set_window_geometry(AXdgSurface: Pxdg_surface; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
 /// <summary>xdg_surface.ack_configure: ack a configure event</summary>
+
 procedure xdg_surface_ack_configure(AXdgSurface: Pxdg_surface; ASerial: UInt32);
 
 function xdg_toplevel_add_listener(AXdgToplevel: Pxdg_toplevel; AListener: Pxdg_toplevel_listener; AData: Pointer): Integer;
+
 procedure xdg_toplevel_set_user_data(AXdgToplevel: Pxdg_toplevel; AUserData: Pointer);
+
 function xdg_toplevel_get_user_data(AXdgToplevel: Pxdg_toplevel): Pointer;
+
 function xdg_toplevel_get_version(AXdgToplevel: Pxdg_toplevel): UInt32;
 /// <summary>xdg_toplevel.destroy: destroy the xdg_toplevel</summary>
+
 procedure xdg_toplevel_destroy(AXdgToplevel: Pxdg_toplevel);
 /// <summary>xdg_toplevel.set_parent: set the parent of this surface</summary>
+
 procedure xdg_toplevel_set_parent(AXdgToplevel: Pxdg_toplevel; AParent: Pxdg_toplevel);
 /// <summary>xdg_toplevel.set_title: set surface title</summary>
+
 procedure xdg_toplevel_set_title(AXdgToplevel: Pxdg_toplevel; ATitle: PAnsiChar);
 /// <summary>xdg_toplevel.set_app_id: set application ID</summary>
+
 procedure xdg_toplevel_set_app_id(AXdgToplevel: Pxdg_toplevel; AAppId: PAnsiChar);
 /// <summary>xdg_toplevel.show_window_menu: show the window menu</summary>
+
 procedure xdg_toplevel_show_window_menu(AXdgToplevel: Pxdg_toplevel; ASeat: Pwl_seat; ASerial: UInt32; AX: Int32; AY: Int32);
 /// <summary>xdg_toplevel.move: start an interactive move</summary>
+
 procedure xdg_toplevel_move(AXdgToplevel: Pxdg_toplevel; ASeat: Pwl_seat; ASerial: UInt32);
 /// <summary>xdg_toplevel.resize: start an interactive resize</summary>
+
 procedure xdg_toplevel_resize(AXdgToplevel: Pxdg_toplevel; ASeat: Pwl_seat; ASerial: UInt32; AEdges: UInt32);
 /// <summary>xdg_toplevel.set_max_size: set the maximum size</summary>
+
 procedure xdg_toplevel_set_max_size(AXdgToplevel: Pxdg_toplevel; AWidth: Int32; AHeight: Int32);
 /// <summary>xdg_toplevel.set_min_size: set the minimum size</summary>
+
 procedure xdg_toplevel_set_min_size(AXdgToplevel: Pxdg_toplevel; AWidth: Int32; AHeight: Int32);
 /// <summary>xdg_toplevel.set_maximized: maximize the window</summary>
+
 procedure xdg_toplevel_set_maximized(AXdgToplevel: Pxdg_toplevel);
 /// <summary>xdg_toplevel.unset_maximized: unmaximize the window</summary>
+
 procedure xdg_toplevel_unset_maximized(AXdgToplevel: Pxdg_toplevel);
 /// <summary>xdg_toplevel.set_fullscreen: set the window as fullscreen on an output</summary>
+
 procedure xdg_toplevel_set_fullscreen(AXdgToplevel: Pxdg_toplevel; AOutput: Pwl_output);
 /// <summary>xdg_toplevel.unset_fullscreen: unset the window as fullscreen</summary>
+
 procedure xdg_toplevel_unset_fullscreen(AXdgToplevel: Pxdg_toplevel);
 /// <summary>xdg_toplevel.set_minimized: set the window as minimized</summary>
+
 procedure xdg_toplevel_set_minimized(AXdgToplevel: Pxdg_toplevel);
 
 function xdg_popup_add_listener(AXdgPopup: Pxdg_popup; AListener: Pxdg_popup_listener; AData: Pointer): Integer;
+
 procedure xdg_popup_set_user_data(AXdgPopup: Pxdg_popup; AUserData: Pointer);
+
 function xdg_popup_get_user_data(AXdgPopup: Pxdg_popup): Pointer;
+
 function xdg_popup_get_version(AXdgPopup: Pxdg_popup): UInt32;
 /// <summary>xdg_popup.destroy: remove xdg_popup interface</summary>
+
 procedure xdg_popup_destroy(AXdgPopup: Pxdg_popup);
 /// <summary>xdg_popup.grab: make the popup take an explicit grab</summary>
+
 procedure xdg_popup_grab(AXdgPopup: Pxdg_popup; ASeat: Pwl_seat; ASerial: UInt32);
 /// <summary>xdg_popup.reposition: recalculate the popup's location</summary>
+
 procedure xdg_popup_reposition(AXdgPopup: Pxdg_popup; APositioner: Pxdg_positioner; AToken: UInt32);
 
 implementation
@@ -593,7 +659,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pxdg_positioner(WlProxyMarshalFlags(Pwl_proxy(AXdgWmBase), XDG_WM_BASE_CREATE_POSITIONER_OPCODE, @xdg_positioner_interface,
-    wl_proxy_get_version(Pwl_proxy(AXdgWmBase)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AXdgWmBase)), 0, @LArgs[0]));
 end;
 
 function xdg_wm_base_get_xdg_surface(AXdgWmBase: Pxdg_wm_base; ASurface: Pwl_surface): Pxdg_surface;
@@ -604,7 +670,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := ASurface;
   Result := Pxdg_surface(WlProxyMarshalFlags(Pwl_proxy(AXdgWmBase), XDG_WM_BASE_GET_XDG_SURFACE_OPCODE, @xdg_surface_interface,
-    wl_proxy_get_version(Pwl_proxy(AXdgWmBase)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AXdgWmBase)), 0, @LArgs[0]));
 end;
 
 procedure xdg_wm_base_pong(AXdgWmBase: Pxdg_wm_base; ASerial: UInt32);
@@ -760,7 +826,7 @@ begin
   FillChar(LArgs, SizeOf(LArgs), 0);
   LArgs[0].o := nil;
   Result := Pxdg_toplevel(WlProxyMarshalFlags(Pwl_proxy(AXdgSurface), XDG_SURFACE_GET_TOPLEVEL_OPCODE, @xdg_toplevel_interface,
-    wl_proxy_get_version(Pwl_proxy(AXdgSurface)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AXdgSurface)), 0, @LArgs[0]));
 end;
 
 function xdg_surface_get_popup(AXdgSurface: Pxdg_surface; AParent: Pxdg_surface; APositioner: Pxdg_positioner): Pxdg_popup;
@@ -772,7 +838,7 @@ begin
   LArgs[1].o := AParent;
   LArgs[2].o := APositioner;
   Result := Pxdg_popup(WlProxyMarshalFlags(Pwl_proxy(AXdgSurface), XDG_SURFACE_GET_POPUP_OPCODE, @xdg_popup_interface,
-    wl_proxy_get_version(Pwl_proxy(AXdgSurface)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AXdgSurface)), 0, @LArgs[0]));
 end;
 
 procedure xdg_surface_set_window_geometry(AXdgSurface: Pxdg_surface; AX: Int32; AY: Int32; AWidth: Int32; AHeight: Int32);
@@ -995,4 +1061,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

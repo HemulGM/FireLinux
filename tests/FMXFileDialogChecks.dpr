@@ -61,7 +61,7 @@ var I: Integer;
 begin
   Result := nil;
   for I := 0 to Dialog.FileList.Count - 1 do
-    if (Dialog.FileList.ListItems[I].Text = Name) or (Dialog.FileList.ListItems[I].Text = '[Папка] ' + Name) then
+    if (Dialog.FileList.ListItems[I].Text = Name) or (Dialog.FileList.ListItems[I].Text = Name + '/') then
       Exit(Dialog.FileList.ListItems[I]);
 end;
 

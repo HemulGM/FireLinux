@@ -36,10 +36,13 @@ type
   /// <summary>zxdg_decoration_manager_v1: window decoration manager</summary>
   Tzxdg_decoration_manager_v1 = record
   end;
+
   Pzxdg_decoration_manager_v1 = ^Tzxdg_decoration_manager_v1;
   /// <summary>zxdg_toplevel_decoration_v1: decoration object for a toplevel surface</summary>
+
   Tzxdg_toplevel_decoration_v1 = record
   end;
+
   Pzxdg_toplevel_decoration_v1 = ^Tzxdg_toplevel_decoration_v1;
 
 const
@@ -68,6 +71,7 @@ type
     /// <summary>notify a decoration mode change</summary>
     configure: procedure(AData: Pointer; AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1; AMode: UInt32); cdecl;
   end;
+
   Pzxdg_toplevel_decoration_v1_listener = ^Tzxdg_toplevel_decoration_v1_listener;
 
 var
@@ -75,22 +79,32 @@ var
   zxdg_toplevel_decoration_v1_interface: Twl_interface;
 
 procedure zxdg_decoration_manager_v1_set_user_data(AZxdgDecorationManagerV1: Pzxdg_decoration_manager_v1; AUserData: Pointer);
+
 function zxdg_decoration_manager_v1_get_user_data(AZxdgDecorationManagerV1: Pzxdg_decoration_manager_v1): Pointer;
+
 function zxdg_decoration_manager_v1_get_version(AZxdgDecorationManagerV1: Pzxdg_decoration_manager_v1): UInt32;
 /// <summary>zxdg_decoration_manager_v1.destroy: destroy the decoration manager object</summary>
+
 procedure zxdg_decoration_manager_v1_destroy(AZxdgDecorationManagerV1: Pzxdg_decoration_manager_v1);
 /// <summary>zxdg_decoration_manager_v1.get_toplevel_decoration: create a new toplevel decoration object</summary>
+
 function zxdg_decoration_manager_v1_get_toplevel_decoration(AZxdgDecorationManagerV1: Pzxdg_decoration_manager_v1; AToplevel: Pxdg_toplevel): Pzxdg_toplevel_decoration_v1;
 
 function zxdg_toplevel_decoration_v1_add_listener(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1; AListener: Pzxdg_toplevel_decoration_v1_listener; AData: Pointer): Integer;
+
 procedure zxdg_toplevel_decoration_v1_set_user_data(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1; AUserData: Pointer);
+
 function zxdg_toplevel_decoration_v1_get_user_data(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1): Pointer;
+
 function zxdg_toplevel_decoration_v1_get_version(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1): UInt32;
 /// <summary>zxdg_toplevel_decoration_v1.destroy: destroy the decoration object</summary>
+
 procedure zxdg_toplevel_decoration_v1_destroy(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1);
 /// <summary>zxdg_toplevel_decoration_v1.set_mode: set the decoration mode</summary>
+
 procedure zxdg_toplevel_decoration_v1_set_mode(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1; AMode: UInt32);
 /// <summary>zxdg_toplevel_decoration_v1.unset_mode: unset the decoration mode</summary>
+
 procedure zxdg_toplevel_decoration_v1_unset_mode(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1);
 
 implementation
@@ -168,7 +182,7 @@ begin
   LArgs[0].o := nil;
   LArgs[1].o := AToplevel;
   Result := Pzxdg_toplevel_decoration_v1(WlProxyMarshalFlags(Pwl_proxy(AZxdgDecorationManagerV1), ZXDG_DECORATION_MANAGER_V1_GET_TOPLEVEL_DECORATION_OPCODE, @zxdg_toplevel_decoration_v1_interface,
-    wl_proxy_get_version(Pwl_proxy(AZxdgDecorationManagerV1)), 0, @LArgs[0]));
+      wl_proxy_get_version(Pwl_proxy(AZxdgDecorationManagerV1)), 0, @LArgs[0]));
 end;
 
 function zxdg_toplevel_decoration_v1_add_listener(AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1; AListener: Pzxdg_toplevel_decoration_v1_listener; AData: Pointer): Integer;
@@ -218,4 +232,6 @@ end;
 
 initialization
   InitInterfaces;
+
 end.
+

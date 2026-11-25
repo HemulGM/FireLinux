@@ -15,6 +15,7 @@ type
     Added: TMenuItem;
     Stage, Clicks, ActionCalls: Integer;
     PopupMapped, NestedMapped: Boolean;
+    PopupWait: TStopwatch;
     KeyboardMoved, EscapeHandled, ActivationMapped: Boolean;
     procedure CommandClick(Sender: TObject);
     procedure ActionExecute(Sender: TObject);
@@ -52,8 +53,19 @@ begin
 end;
 
 procedure TChecks.PopupTick(Sender: TObject);
-var ParentView: IMenuView;
+var
+  ParentView: IMenuView;
+  ExpectedPopups: Integer;
 begin
+  case Stage of
+    0, 10, 20: ExpectedPopups := 1;
+    1: ExpectedPopups := 2;
+  else
+    ExpectedPopups := 0;
+  end;
+  // The compositor configures and maps a popup asynchronously. Keep polling up to two seconds.
+  if (ExpectedPopups > 0) and (PopupCount < ExpectedPopups) and (PopupWait.ElapsedMilliseconds < 2000) then
+    Exit;
   case Stage of
     0: begin
       PopupMapped := PopupCount > 0;
@@ -62,6 +74,7 @@ begin
       HandleWaylandMenuKey(Form, vkHome, #0, []);
       KeyboardMoved := KeyboardMoved and (Root.View.ChildView.Selected = Nested);
       Stage := 1;
+      PopupWait := TStopwatch.StartNew;
       HandleWaylandMenuKey(Form, vkRight, #0, []); // The same timer ends the nested loop on its next tick.
       Stage := 2;
       // Add and delete source items while the outer popup still owns its projected children.
@@ -159,6 +172,7 @@ begin
         Test.Timer := TTimer.Create(nil);
         try
           Test.Timer.Interval := 120; Test.Timer.OnTimer := Test.PopupTick;
+          Test.PopupWait := TStopwatch.StartNew;
           Test.Root.Popup;
           Test.Timer.Enabled := False;
         finally Test.Timer.Free; end;
@@ -170,16 +184,21 @@ begin
         Test.Timer := TTimer.Create(nil);
         try
           Test.Stage := 10; Test.Timer.Interval := 120; Test.Timer.OnTimer := Test.PopupTick;
+          Test.PopupWait := TStopwatch.StartNew;
           Check(HandleWaylandMenuKey(Test.Form, vkF10, #0, []), 'F10 enters the main menu');
           Test.Timer.Enabled := False;
           Check((Test.Stage = 11) and Test.ActivationMapped, 'F10 opens a native popup');
           Test.Form.MenuFile.Text := '&File';
-          Test.Stage := 10; Test.ActivationMapped := False; Test.Timer.Enabled := True;
+          Test.Stage := 10; Test.ActivationMapped := False;
+          Test.PopupWait := TStopwatch.StartNew;
+          Test.Timer.Enabled := True;
           Check(HandleWaylandMenuKey(Test.Form, Ord('F'), 'f', [ssAlt]), 'Alt mnemonic enters the menu');
           Test.Timer.Enabled := False;
           Check((Test.Stage = 11) and Test.ActivationMapped, 'Alt mnemonic opens a native popup');
           Test.Form.MenuOpen.OnClick := Test.CommandClick;
-          Test.Stage := 20; Test.ActivationMapped := False; Test.Timer.Enabled := True;
+          Test.Stage := 20; Test.ActivationMapped := False;
+          Test.PopupWait := TStopwatch.StartNew;
+          Test.Timer.Enabled := True;
           HandleWaylandMenuKey(Test.Form, vkF10, #0, []);
           Test.Timer.Enabled := False;
           Check((Test.Stage = 21) and Test.ActivationMapped, 'Shortcut closes an open menu');

@@ -2353,101 +2353,197 @@ const
 
 type
   VkAccessFlags = Cardinal;
+
   VkAttachmentDescriptionFlags = Cardinal;
+
   VkAttachmentLoadOp = Cardinal;
+
   VkAttachmentStoreOp = Cardinal;
+
   VkBlendFactor = Cardinal;
+
   VkBlendOp = Cardinal;
+
   VkBorderColor = Cardinal;
+
   VkBuffer = UInt64;
+
   VkBufferCreateFlags = Cardinal;
+
   VkBufferUsageFlags = Cardinal;
+
   VkColorComponentFlags = Cardinal;
+
   VkCommandBuffer = UInt64;
+
   VkCommandBufferLevel = Cardinal;
+
   VkCommandBufferUsageFlags = Cardinal;
+
   VkCommandPool = UInt64;
+
   VkCommandPoolCreateFlags = Cardinal;
+
   VkCompareOp = Cardinal;
+
   VkComponentSwizzle = Cardinal;
+
   VkCullModeFlags = Cardinal;
+
   VkDependencyFlags = Cardinal;
+
   VkDescriptorPool = UInt64;
+
   VkDescriptorPoolCreateFlags = Cardinal;
+
   VkDescriptorSet = UInt64;
+
   VkDescriptorSetLayout = UInt64;
+
   VkDescriptorSetLayoutCreateFlags = Cardinal;
+
   VkDescriptorType = Cardinal;
+
   VkDevice = UInt64;
+
   VkDeviceCreateFlags = Cardinal;
+
   VkDeviceMemory = UInt64;
+
   VkDeviceQueueCreateFlags = Cardinal;
+
   VkFence = UInt64;
+
   VkFenceCreateFlags = Cardinal;
+
   VkFilter = Cardinal;
+
   VkFormat = Cardinal;
+
   VkFormatFeatureFlags = Cardinal;
+
   VkFramebuffer = UInt64;
+
   VkFramebufferCreateFlags = Cardinal;
+
   VkFrontFace = Cardinal;
+
   VkImage = UInt64;
+
   VkImageAspectFlags = Cardinal;
+
   VkImageCreateFlags = Cardinal;
+
   VkImageLayout = Cardinal;
+
   VkImageTiling = Cardinal;
+
   VkImageType = Cardinal;
+
   VkImageUsageFlags = Cardinal;
+
   VkImageView = UInt64;
+
   VkImageViewCreateFlags = Cardinal;
+
   VkImageViewType = Cardinal;
+
   VkIndexType = Cardinal;
+
   VkInstance = UInt64;
+
   VkInstanceCreateFlags = Cardinal;
+
   VkLogicOp = Cardinal;
+
   VkMemoryHeapFlags = Cardinal;
+
   VkMemoryMapFlags = Cardinal;
+
   VkMemoryPropertyFlags = Cardinal;
+
   VkPhysicalDevice = UInt64;
+
   VkPhysicalDeviceType = Cardinal;
+
   VkPipeline = UInt64;
+
   VkPipelineBindPoint = Cardinal;
+
   VkPipelineCache = UInt64;
+
   VkPipelineColorBlendStateCreateFlags = Cardinal;
+
   VkPipelineCreateFlags = Cardinal;
+
   VkPipelineDepthStencilStateCreateFlags = Cardinal;
+
   VkPipelineDynamicStateCreateFlags = Cardinal;
+
   VkPipelineInputAssemblyStateCreateFlags = Cardinal;
+
   VkPipelineLayout = UInt64;
+
   VkPipelineLayoutCreateFlags = Cardinal;
+
   VkPipelineMultisampleStateCreateFlags = Cardinal;
+
   VkPipelineRasterizationStateCreateFlags = Cardinal;
+
   VkPipelineShaderStageCreateFlags = Cardinal;
+
   VkPipelineStageFlags = Cardinal;
+
   VkPipelineVertexInputStateCreateFlags = Cardinal;
+
   VkPipelineViewportStateCreateFlags = Cardinal;
+
   VkPolygonMode = Cardinal;
+
   VkPrimitiveTopology = Cardinal;
+
   VkQueue = UInt64;
+
   VkQueueFlags = Cardinal;
+
   VkRenderPass = UInt64;
+
   VkRenderPassCreateFlags = Cardinal;
+
   VkResult = Integer;
+
   VkSampleCountFlagBits = Cardinal;
+
   VkSampleCountFlags = Cardinal;
+
   VkSampler = UInt64;
+
   VkSamplerAddressMode = Cardinal;
+
   VkSamplerCreateFlags = Cardinal;
+
   VkSamplerMipmapMode = Cardinal;
+
   VkShaderModule = UInt64;
+
   VkShaderModuleCreateFlags = Cardinal;
+
   VkShaderStageFlagBits = Cardinal;
+
   VkShaderStageFlags = Cardinal;
+
   VkSharingMode = Cardinal;
+
   VkStencilOp = Cardinal;
+
   VkStructureType = Cardinal;
+
   VkSubpassContents = Cardinal;
+
   VkSubpassDescriptionFlags = Cardinal;
+
   VkVertexInputRate = Cardinal;
+
   VkApplicationInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2457,6 +2553,7 @@ type
     engineVersion: Cardinal;
     apiVersion: Cardinal;
   end;
+
   VkInstanceCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2467,6 +2564,7 @@ type
     enabledExtensionCount: Cardinal;
     ppEnabledExtensionNames: Pointer;
   end;
+
   VkDeviceQueueCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2475,6 +2573,7 @@ type
     queueCount: Cardinal;
     pQueuePriorities: Pointer;
   end;
+
   VkDeviceCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2487,6 +2586,7 @@ type
     ppEnabledExtensionNames: Pointer;
     pEnabledFeatures: Pointer;
   end;
+
   VkPhysicalDeviceLimits = record
     maxImageDimension1D: Cardinal;
     maxImageDimension2D: Cardinal;
@@ -2595,6 +2695,7 @@ type
     optimalBufferCopyRowPitchAlignment: UInt64;
     nonCoherentAtomSize: UInt64;
   end;
+
   VkPhysicalDeviceSparseProperties = record
     residencyStandard2DBlockShape: Cardinal;
     residencyStandard2DMultisampleBlockShape: Cardinal;
@@ -2602,6 +2703,7 @@ type
     residencyAlignedMipSize: Cardinal;
     residencyNonResidentStrict: Cardinal;
   end;
+
   VkPhysicalDeviceProperties = record
     apiVersion: Cardinal;
     driverVersion: Cardinal;
@@ -2613,36 +2715,43 @@ type
     limits: VkPhysicalDeviceLimits;
     sparseProperties: VkPhysicalDeviceSparseProperties;
   end;
+
   VkMemoryType = record
     propertyFlags: VkMemoryPropertyFlags;
     heapIndex: Cardinal;
   end;
+
   VkMemoryHeap = record
     size: UInt64;
     flags: VkMemoryHeapFlags;
   end;
+
   VkPhysicalDeviceMemoryProperties = record
     memoryTypeCount: Cardinal;
     memoryTypes: array[0..31] of VkMemoryType;
     memoryHeapCount: Cardinal;
     memoryHeaps: array[0..15] of VkMemoryHeap;
   end;
+
   VkExtent3D = record
     width: Cardinal;
     height: Cardinal;
     depth: Cardinal;
   end;
+
   VkQueueFamilyProperties = record
     queueFlags: VkQueueFlags;
     queueCount: Cardinal;
     timestampValidBits: Cardinal;
     minImageTransferGranularity: VkExtent3D;
   end;
+
   VkFormatProperties = record
     linearTilingFeatures: VkFormatFeatureFlags;
     optimalTilingFeatures: VkFormatFeatureFlags;
     bufferFeatures: VkFormatFeatureFlags;
   end;
+
   VkImageFormatProperties = record
     maxExtent: VkExtent3D;
     maxMipLevels: Cardinal;
@@ -2650,6 +2759,7 @@ type
     sampleCounts: VkSampleCountFlags;
     maxResourceSize: UInt64;
   end;
+
   VkBufferCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2660,17 +2770,20 @@ type
     queueFamilyIndexCount: Cardinal;
     pQueueFamilyIndices: Pointer;
   end;
+
   VkMemoryRequirements = record
     size: UInt64;
     alignment: UInt64;
     memoryTypeBits: Cardinal;
   end;
+
   VkMemoryAllocateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
     allocationSize: UInt64;
     memoryTypeIndex: Cardinal;
   end;
+
   VkImageCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2688,12 +2801,14 @@ type
     pQueueFamilyIndices: Pointer;
     initialLayout: VkImageLayout;
   end;
+
   VkComponentMapping = record
     r: VkComponentSwizzle;
     g: VkComponentSwizzle;
     b: VkComponentSwizzle;
     a: VkComponentSwizzle;
   end;
+
   VkImageSubresourceRange = record
     aspectMask: VkImageAspectFlags;
     baseMipLevel: Cardinal;
@@ -2701,6 +2816,7 @@ type
     baseArrayLayer: Cardinal;
     layerCount: Cardinal;
   end;
+
   VkImageViewCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2711,6 +2827,7 @@ type
     components: VkComponentMapping;
     subresourceRange: VkImageSubresourceRange;
   end;
+
   VkSamplerCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2731,12 +2848,14 @@ type
     borderColor: VkBorderColor;
     unnormalizedCoordinates: Cardinal;
   end;
+
   VkCommandPoolCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
     flags: VkCommandPoolCreateFlags;
     queueFamilyIndex: Cardinal;
   end;
+
   VkCommandBufferAllocateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2744,12 +2863,14 @@ type
     level: VkCommandBufferLevel;
     commandBufferCount: Cardinal;
   end;
+
   VkCommandBufferBeginInfo = record
     sType: VkStructureType;
     pNext: Pointer;
     flags: VkCommandBufferUsageFlags;
     pInheritanceInfo: Pointer;
   end;
+
   VkSubmitInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2761,11 +2882,13 @@ type
     signalSemaphoreCount: Cardinal;
     pSignalSemaphores: Pointer;
   end;
+
   VkFenceCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
     flags: VkFenceCreateFlags;
   end;
+
   VkImageMemoryBarrier = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2778,6 +2901,7 @@ type
     image: VkImage;
     subresourceRange: VkImageSubresourceRange;
   end;
+
   VkBufferMemoryBarrier = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2789,17 +2913,20 @@ type
     offset: UInt64;
     size: UInt64;
   end;
+
   VkImageSubresourceLayers = record
     aspectMask: VkImageAspectFlags;
     mipLevel: Cardinal;
     baseArrayLayer: Cardinal;
     layerCount: Cardinal;
   end;
+
   VkOffset3D = record
     x: Integer;
     y: Integer;
     z: Integer;
   end;
+
   VkBufferImageCopy = record
     bufferOffset: UInt64;
     bufferRowLength: Cardinal;
@@ -2808,12 +2935,14 @@ type
     imageOffset: VkOffset3D;
     imageExtent: VkExtent3D;
   end;
+
   VkImageBlit = record
     srcSubresource: VkImageSubresourceLayers;
     srcOffsets: array[0..1] of VkOffset3D;
     dstSubresource: VkImageSubresourceLayers;
     dstOffsets: array[0..1] of VkOffset3D;
   end;
+
   VkRenderPassCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2825,6 +2954,7 @@ type
     dependencyCount: Cardinal;
     pDependencies: Pointer;
   end;
+
   VkAttachmentDescription = record
     flags: VkAttachmentDescriptionFlags;
     format: VkFormat;
@@ -2836,10 +2966,12 @@ type
     initialLayout: VkImageLayout;
     finalLayout: VkImageLayout;
   end;
+
   VkAttachmentReference = record
     attachment: Cardinal;
     layout: VkImageLayout;
   end;
+
   VkSubpassDescription = record
     flags: VkSubpassDescriptionFlags;
     pipelineBindPoint: VkPipelineBindPoint;
@@ -2852,6 +2984,7 @@ type
     preserveAttachmentCount: Cardinal;
     pPreserveAttachments: Pointer;
   end;
+
   VkSubpassDependency = record
     srcSubpass: Cardinal;
     dstSubpass: Cardinal;
@@ -2861,6 +2994,7 @@ type
     dstAccessMask: VkAccessFlags;
     dependencyFlags: VkDependencyFlags;
   end;
+
   VkFramebufferCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2872,18 +3006,22 @@ type
     height: Cardinal;
     layers: Cardinal;
   end;
+
   VkOffset2D = record
     x: Integer;
     y: Integer;
   end;
+
   VkExtent2D = record
     width: Cardinal;
     height: Cardinal;
   end;
+
   VkRect2D = record
     offset: VkOffset2D;
     extent: VkExtent2D;
   end;
+
   VkRenderPassBeginInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2893,31 +3031,42 @@ type
     clearValueCount: Cardinal;
     pClearValues: Pointer;
   end;
+
   VkClearColorValue = record
     case Integer of
-    0: (float32: array[0..3] of Single);
-    1: (int32: array[0..3] of Integer);
-    2: (uint32: array[0..3] of Cardinal);
+      0:
+        (float32: array[0..3] of Single);
+      1:
+        (int32: array[0..3] of Integer);
+      2:
+        (uint32: array[0..3] of Cardinal);
   end;
+
   VkClearDepthStencilValue = record
     depth: Single;
     stencil: Cardinal;
   end;
+
   VkClearValue = record
     case Integer of
-    0: (color: VkClearColorValue);
-    1: (depthStencil: VkClearDepthStencilValue);
+      0:
+        (color: VkClearColorValue);
+      1:
+        (depthStencil: VkClearDepthStencilValue);
   end;
+
   VkClearAttachment = record
     aspectMask: VkImageAspectFlags;
     colorAttachment: Cardinal;
     clearValue: VkClearValue;
   end;
+
   VkClearRect = record
     rect: VkRect2D;
     baseArrayLayer: Cardinal;
     layerCount: Cardinal;
   end;
+
   VkShaderModuleCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2925,6 +3074,7 @@ type
     codeSize: NativeUInt;
     pCode: Pointer;
   end;
+
   VkDescriptorSetLayoutBinding = record
     binding: Cardinal;
     descriptorType: VkDescriptorType;
@@ -2932,6 +3082,7 @@ type
     stageFlags: VkShaderStageFlags;
     pImmutableSamplers: Pointer;
   end;
+
   VkDescriptorSetLayoutCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2939,10 +3090,12 @@ type
     bindingCount: Cardinal;
     pBindings: Pointer;
   end;
+
   VkDescriptorPoolSize = record
     &type: VkDescriptorType;
     descriptorCount: Cardinal;
   end;
+
   VkDescriptorPoolCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2951,6 +3104,7 @@ type
     poolSizeCount: Cardinal;
     pPoolSizes: Pointer;
   end;
+
   VkDescriptorSetAllocateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2958,16 +3112,19 @@ type
     descriptorSetCount: Cardinal;
     pSetLayouts: Pointer;
   end;
+
   VkDescriptorBufferInfo = record
     buffer: VkBuffer;
     offset: UInt64;
     range: UInt64;
   end;
+
   VkDescriptorImageInfo = record
     sampler: VkSampler;
     imageView: VkImageView;
     imageLayout: VkImageLayout;
   end;
+
   VkWriteDescriptorSet = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2980,6 +3137,7 @@ type
     pBufferInfo: Pointer;
     pTexelBufferView: Pointer;
   end;
+
   VkPipelineLayoutCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2989,6 +3147,7 @@ type
     pushConstantRangeCount: Cardinal;
     pPushConstantRanges: Pointer;
   end;
+
   VkPipelineShaderStageCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -2998,17 +3157,20 @@ type
     pName: Pointer;
     pSpecializationInfo: Pointer;
   end;
+
   VkVertexInputBindingDescription = record
     binding: Cardinal;
     stride: Cardinal;
     inputRate: VkVertexInputRate;
   end;
+
   VkVertexInputAttributeDescription = record
     location: Cardinal;
     binding: Cardinal;
     format: VkFormat;
     offset: Cardinal;
   end;
+
   VkPipelineVertexInputStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3018,6 +3180,7 @@ type
     vertexAttributeDescriptionCount: Cardinal;
     pVertexAttributeDescriptions: Pointer;
   end;
+
   VkPipelineInputAssemblyStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3025,6 +3188,7 @@ type
     topology: VkPrimitiveTopology;
     primitiveRestartEnable: Cardinal;
   end;
+
   VkPipelineViewportStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3034,6 +3198,7 @@ type
     scissorCount: Cardinal;
     pScissors: Pointer;
   end;
+
   VkPipelineRasterizationStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3049,6 +3214,7 @@ type
     depthBiasSlopeFactor: Single;
     lineWidth: Single;
   end;
+
   VkPipelineMultisampleStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3060,6 +3226,7 @@ type
     alphaToCoverageEnable: Cardinal;
     alphaToOneEnable: Cardinal;
   end;
+
   VkStencilOpState = record
     failOp: VkStencilOp;
     passOp: VkStencilOp;
@@ -3069,6 +3236,7 @@ type
     writeMask: Cardinal;
     reference: Cardinal;
   end;
+
   VkPipelineDepthStencilStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3083,6 +3251,7 @@ type
     minDepthBounds: Single;
     maxDepthBounds: Single;
   end;
+
   VkPipelineColorBlendAttachmentState = record
     blendEnable: Cardinal;
     srcColorBlendFactor: VkBlendFactor;
@@ -3093,6 +3262,7 @@ type
     alphaBlendOp: VkBlendOp;
     colorWriteMask: VkColorComponentFlags;
   end;
+
   VkPipelineColorBlendStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3103,6 +3273,7 @@ type
     pAttachments: Pointer;
     blendConstants: array[0..3] of Single;
   end;
+
   VkPipelineDynamicStateCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3110,6 +3281,7 @@ type
     dynamicStateCount: Cardinal;
     pDynamicStates: Pointer;
   end;
+
   VkGraphicsPipelineCreateInfo = record
     sType: VkStructureType;
     pNext: Pointer;
@@ -3131,6 +3303,7 @@ type
     basePipelineHandle: VkPipeline;
     basePipelineIndex: Integer;
   end;
+
   VkViewport = record
     x: Single;
     y: Single;
@@ -3214,21 +3387,26 @@ var
 
 implementation
 
-uses System.SysUtils, Posix.Dlfcn;
+uses
+  System.SysUtils, Posix.Dlfcn;
 
-var LibraryHandle: NativeUInt;
+var
+  LibraryHandle: NativeUInt;
 
 function Symbol(const Name: PAnsiChar): Pointer;
 begin
   Result := dlsym(LibraryHandle, Name);
-  if Result = nil then raise Exception.CreateFmt('Vulkan: missing %s', [string(Name)]);
+  if Result = nil then
+    raise Exception.CreateFmt('Vulkan: missing %s', [string(Name)]);
 end;
 
 procedure LoadVulkan;
 begin
-  if LibraryHandle <> 0 then Exit;
+  if LibraryHandle <> 0 then
+    Exit;
   LibraryHandle := dlopen('libvulkan.so.1', RTLD_NOW or RTLD_LOCAL);
-  if LibraryHandle = 0 then raise Exception.Create('Vulkan: cannot load system libvulkan.so.1');
+  if LibraryHandle = 0 then
+    raise Exception.Create('Vulkan: cannot load system libvulkan.so.1');
   try
     @vkCreateInstance := Symbol('vkCreateInstance');
     @vkDestroyInstance := Symbol('vkDestroyInstance');
@@ -3306,3 +3484,4 @@ begin
 end;
 
 end.
+

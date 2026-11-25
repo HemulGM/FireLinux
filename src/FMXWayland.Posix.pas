@@ -18,6 +18,7 @@ type
     events: Int16;
     revents: Int16;
   end;
+
   PPollFd = ^TPollFd;
 
 const
@@ -33,27 +34,34 @@ const
 /// <summary>poll(2).</summary>
 function poll(AFds: PPollFd; ANfds: NativeUInt; ATimeout: Integer): Integer; cdecl; external libc name 'poll';
 /// <summary>eventfd(2).</summary>
+
 function eventfd(AInitVal: Cardinal; AFlags: Integer): Integer; cdecl; external libc name 'eventfd';
 /// <summary>pipe2(2).</summary>
+
 function pipe2(AFds: PInteger; AFlags: Integer): Integer; cdecl; external libc name 'pipe2';
 
 /// <summary>Milliseconds of CLOCK_MONOTONIC.</summary>
 function MonotonicMs: Int64;
 /// <summary>An anonymous file of ASize bytes for shared memory (memfd_create, or an unlinked file in
 /// XDG_RUNTIME_DIR on old systems); -1 on failure.</summary>
+
 function CreateAnonymousFile(const ASize: NativeInt): Integer;
 /// <summary>Closes a file descriptor (ignores -1).</summary>
+
 procedure CloseFd(var AFd: Integer);
 /// <summary>Writes all of ABuffer (retries on EINTR/partial writes, waits with poll on EAGAIN); False on error.
 /// </summary>
+
 function WriteAll(const AFd: Integer; ABuffer: Pointer; ASize: NativeInt): Boolean;
 /// <summary>Ignores SIGPIPE (a clipboard reader that goes away must not kill the program).</summary>
+
 procedure IgnoreSigPipe;
 
 implementation
 
 uses
-  System.SysUtils, Posix.Time, Posix.Unistd, Posix.Errno, Posix.Stdlib, Posix.Dlfcn, Posix.Signal;
+  System.SysUtils, Posix.Time, Posix.Unistd, Posix.Errno, Posix.Stdlib,
+  Posix.Dlfcn, Posix.Signal;
 
 function MonotonicMs: Int64;
 var
@@ -153,3 +161,4 @@ begin
 end;
 
 end.
+

@@ -11,12 +11,16 @@ type
   /// <summary>Opaque struct xkb_context.</summary>
   PXkbContext = type Pointer;
   /// <summary>Opaque struct xkb_keymap.</summary>
+
   PXkbKeymap = type Pointer;
   /// <summary>Opaque struct xkb_state.</summary>
+
   PXkbState = type Pointer;
   /// <summary>Opaque struct xkb_compose_table.</summary>
+
   PXkbComposeTable = type Pointer;
   /// <summary>Opaque struct xkb_compose_state.</summary>
+
   PXkbComposeState = type Pointer;
 
 const
@@ -40,36 +44,32 @@ const
 var
   xkb_context_new: function(AFlags: Integer): PXkbContext; cdecl;
   xkb_context_unref: procedure(AContext: PXkbContext); cdecl;
-  xkb_keymap_new_from_string: function(AContext: PXkbContext; AString: PAnsiChar; AFormat: Integer;
-    AFlags: Integer): PXkbKeymap; cdecl;
+  xkb_keymap_new_from_string: function(AContext: PXkbContext; AString: PAnsiChar; AFormat: Integer; AFlags: Integer): PXkbKeymap; cdecl;
   xkb_keymap_unref: procedure(AKeymap: PXkbKeymap); cdecl;
   xkb_keymap_key_repeats: function(AKeymap: PXkbKeymap; AKey: UInt32): Integer; cdecl;
-  xkb_keymap_key_get_syms_by_level: function(AKeymap: PXkbKeymap; AKey: UInt32; ALayout: UInt32; ALevel: UInt32;
-    out ASyms: PCardinal): Integer; cdecl;
+  xkb_keymap_key_get_syms_by_level: function(AKeymap: PXkbKeymap; AKey: UInt32; ALayout: UInt32; ALevel: UInt32; out ASyms: PCardinal): Integer; cdecl;
   xkb_state_new: function(AKeymap: PXkbKeymap): PXkbState; cdecl;
   xkb_state_unref: procedure(AState: PXkbState); cdecl;
-  xkb_state_update_mask: function(AState: PXkbState; ADepressedMods, ALatchedMods, ALockedMods, ADepressedLayout,
-    ALatchedLayout, ALockedLayout: UInt32): Integer; cdecl;
+  xkb_state_update_mask: function(AState: PXkbState; ADepressedMods, ALatchedMods, ALockedMods, ADepressedLayout, ALatchedLayout, ALockedLayout: UInt32): Integer; cdecl;
   xkb_state_key_get_one_sym: function(AState: PXkbState; AKey: UInt32): UInt32; cdecl;
   xkb_state_key_get_utf32: function(AState: PXkbState; AKey: UInt32): UInt32; cdecl;
   xkb_state_key_get_layout: function(AState: PXkbState; AKey: UInt32): UInt32; cdecl;
   xkb_state_mod_name_is_active: function(AState: PXkbState; AName: PAnsiChar; AType: Integer): Integer; cdecl;
   xkb_keysym_to_utf32: function(AKeysym: UInt32): UInt32; cdecl;
   // Compose (optional: missing in very old libxkbcommon)
-  xkb_compose_table_new_from_locale: function(AContext: PXkbContext; ALocale: PAnsiChar;
-    AFlags: Integer): PXkbComposeTable; cdecl;
+  xkb_compose_table_new_from_locale: function(AContext: PXkbContext; ALocale: PAnsiChar; AFlags: Integer): PXkbComposeTable; cdecl;
   xkb_compose_table_unref: procedure(ATable: PXkbComposeTable); cdecl;
   xkb_compose_state_new: function(ATable: PXkbComposeTable; AFlags: Integer): PXkbComposeState; cdecl;
   xkb_compose_state_unref: procedure(AState: PXkbComposeState); cdecl;
   xkb_compose_state_feed: function(AState: PXkbComposeState; AKeysym: UInt32): Integer; cdecl;
   xkb_compose_state_reset: procedure(AState: PXkbComposeState); cdecl;
   xkb_compose_state_get_status: function(AState: PXkbComposeState): Integer; cdecl;
-  xkb_compose_state_get_utf8: function(AState: PXkbComposeState; ABuffer: PAnsiChar; ASize: NativeUInt): Integer;
-    cdecl;
+  xkb_compose_state_get_utf8: function(AState: PXkbComposeState; ABuffer: PAnsiChar; ASize: NativeUInt): Integer; cdecl;
 
 /// <summary>Loads libxkbcommon.so.0 (once). False with AError = what is missing.</summary>
 function LoadXkbCommon(out AError: string): Boolean;
 /// <summary>True when the compose functions are available.</summary>
+
 function XkbComposeAvailable: Boolean;
 
 implementation
@@ -145,3 +145,4 @@ begin
 end;
 
 end.
+

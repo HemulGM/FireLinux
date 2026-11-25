@@ -4,6 +4,24 @@
 Embarcadero `libfmux.so` и без GTK. Программа FMX работает с композитором Wayland напрямую (libwayland-client и
 libxkbcommon загружаются через `dlopen`) и рисует стандартным Cairo-канвасом FMX в буферы общей памяти (wl_shm).
 
+**Резервный бэкенд X11.** при недоступности Wayland тот же исполняемый файл автоматически использует собственный
+X11-бэкенд через `libX11.so.6`, без GTK и libfmux. `FMXWAYLAND_BACKEND=auto` (по умолчанию) предпочитает Wayland;
+`FMXWAYLAND_BACKEND=x11` принудительно использует `DISPLAY`, `FMXWAYLAND_BACKEND=wayland` запрещает fallback.
+Выбор происходит при запуске, а не после потери соединения уже работающим приложением.
+На X11 работают Cairo и Skia, окна и popup, ввод, таймеры, модальные формы, диалоги и текстовый буфер обмена
+(включая большие передачи INCR; приём до 16 МиБ за 5 секунд). Текущие ограничения X11: масштаб 1, один общий
+экран без RandR, геометрия клиентской области, без XIM/IME. Прозрачные окна и popup используют ARGB32
+при наличии композитора; без него Shape обрезает прозрачные поля (без полупрозрачной тени).
+Сервис собственного заголовка `IFMXWaylandWindowFrame` доступен и на X11: FMR Ribbon автоматически использует
+его для своей шапки, перемещения, resize и кнопок окна. Для старых оконных менеджеров вроде Xming есть
+собственные реализации перемещения/resize и разворачивания; системное меню доступно только при поддержке WM.
+Vulkan-презентация FastCanvas через `IFMXWaylandNativeWindow` остаётся Wayland-only. Проверки: `tests/x11-headless.sh`, подробности в README.md
+(«X11 fallback»).
+
+Для итоговой проверки: `tests/x11-headless.ps1 -Server Xvfb` и `-Server Xorg` собирают и проверяют Cairo/Skia;
+`tests/xming.ps1 -XmingExe <путь>` запускает отдельный Xming. Команды, зависимости и известное ограничение
+больших INCR-передач при включённом мосте Xming `-clipboard` описаны в [docs/X11.md](docs/X11.md).
+
 **Как это устроено.** FMX для Linux вызывает libfmux через ~186 указателей на функции модуля `FMUX.Api`.
 Прекомпилированные модули FMX принимают другой `FMUX.Api` с тем же интерфейсом, поэтому `tools\gen-fmux-api.ps1`
 при сборке генерирует его: секция interface копируется из установленной Delphi (это код Embarcadero, в репозиторий
@@ -36,7 +54,7 @@ libxkbcommon загружаются через `dlopen`) и рисует ста�
 **Требования:** Delphi 13 с платформой Linux, Linux SDK (`tools\make-linux-sdk.ps1` делает его из дистрибутива WSL),
 системные Cairo, Pango/PangoCairo и GdkPixbuf. Пример использует `FMX.Canvas.Linux`; Skia не требуется.
 
-**Сборка:** `.\tools\build.ps1 -Project samples\Hello\Hello.dpr`. **Запуск в WSLg:**
+**Сборка:** `.\tools\build.ps1 -Project samples\Hello\Hello.dpr`. Для Skia используйте `-Define SKIA`. По умолчанию скрипт берёт SDK Ubuntu 22.04. **Запуск в WSLg:**
 `XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir WAYLAND_DISPLAY=wayland-0 ./Hello` (без `DISPLAY`).
 
 **Демо:** `samples\Hello` содержит шесть вкладок: обычные контролы; анимации и изображения; диалоги;
@@ -48,7 +66,7 @@ libxkbcommon загружаются через `dlopen`) и рисует ста�
 На вкладке диалогов можно переключать автоматический выбор Portal → FMX и чистый FMX-бэкенд.
 PNG и JPEG встроены в FMX; исходные картинки лежат в `samples\Hello\assets`, в Deployment их добавлять
 не нужно. `--tab=images`, `--tab=dialogs`, `--tab=platform`, `--tab=drag`, `--tab=3d` выбирают начальную вкладку;
-`--selftest` выполняет автоматическую проверку окон, модальности, буфера обмена и переключения вкладок.
+`--selftest` проверяет окна, модальность, буфер обмена и переключение вкладок. `--backend-probe` открывает форму для тестов композиторов. `--own-titlebar` запускает пример собственного заголовка через `IFMXWaylandWindowFrame`.
 
 **Рисование:** геометрия, градиенты, прозрачность, матрицы и обрезка реализованы через Cairo; Unicode-текст,
 переносы, выделение и преобразование текста в контуры — через Pango; PNG/JPEG — через GdkPixbuf.
@@ -59,9 +77,9 @@ PNG и JPEG встроены в FMX; исходные картинки лежа�
 материалы с depth/stencil и MSAA в FBO; результат читается в BGRA-битмап и выводится Cairo.
 Главный и рабочие контексты разделяют текстуры. На вкладке `3D / OpenGL` — вращающийся куб
 с текстурой, сфера, камера, освещение и управление вращением. Нужны системные `libEGL.so.1`,
-`libGL.so.1`, desktop compatibility OpenGL, `EGL_EXT_platform_wayland` и
-`EGL_KHR_surfaceless_context`; X11 не нужен. Инициализация происходит при первом обращении
-к 3D. Проверки: `tests\OpenGLChecks.dpr` (сборка с `-SearchPath samples\Hello`). Проверено
+`libGL.so.1`, desktop compatibility OpenGL и `EGL_KHR_surfaceless_context`.
+Расширение `EGL_EXT_platform_wayland` или `EGL_EXT_platform_x11` выбирается по текущему бэкенду.
+Инициализация происходит при первом обращении к 3D. Проверки: `tests\OpenGLChecks.dpr` (сборка с `-SearchPath samples\Hello`). Проверено
 в WSLg с отключённым DISPLAY, Mesa 21.2.6 / OpenGL 3.1. Прямая презентация `TForm3D`
 пока не реализована. Отдельный Vulkan-контекст описан ниже. Рабочие потоки нужно завершить до выхода приложения.
 
@@ -118,14 +136,11 @@ SetWaylandDialogBackend(nil);               // Вернуть Portal с авто
 Можно наследоваться от этого класса и переопределить любой из трёх методов для собственных форм.
 Запрос файлов содержит режим, заголовок, начальные пути, фильтры, индекс, множественный выбор и подтверждение
 перезаписи; отмена возвращает `False`. Переключение выполнять в UI-потоке. Уже поставленный в очередь запрос
-сохраняет прежний бэкенд. Отмена Portal не открывает второй диалог. Ошибки уже открытого Portal и некорректные
-ответы остаются исключениями; переход выполняется при отсутствии сервиса/интерфейса, недоступном D-Bus,
-тайм-ауте проверки возможностей или неподдерживаемой версии.
+сохраняет прежний бэкенд. После принятия запроса порталом отмена или ошибочный ответ завершают выбор. Если портал не смог принять запрос, открывается диалог FMX.
 
 Ограничения Portal: выбор папок требует FileChooser версии 3; в текущем Ubuntu 20.04 установлен вариант версии 2.
 В этом случае `SelectDirectory` автоматически показывает FMX-диалог выбора папки.
-Без экспортированного Wayland-идентификатора родителя диалог показывается отдельным окном, ввод в формы приложения
-блокируется на время выбора. Сохранение всегда подтверждает перезапись средствами Portal. Стандартный FMUX ABI
+При поддержке xdg-foreign диалог получает Wayland-идентификатор родителя. В X11 передаётся XID окна. Ввод в формы приложения блокируется на время выбора. Сохранение всегда подтверждает перезапись средствами Portal. Стандартный FMUX ABI
 передаёт не все `TOpenOption` и не передаёт `DefaultExt`; список выбранных путей ограничен 1023 символами.
 Превышение вызывает исключение, пути не обрезаются.
 
@@ -186,3 +201,25 @@ SetWaylandDialogBackend(nil);               // Вернуть Portal с авто
 в [docs/FMUX-STATUS.md](docs/FMUX-STATUS.md), планы — в README.md («Next steps»).
 
 Лицензия MIT.
+
+**Шрифт по умолчанию:** `IFMXSystemFontService` даёт FMX шрифт рабочего стола вместо «Tahoma», которого в Linux
+нет: в GNOME — `font-name` из `org.gnome.desktop.interface`, прочитанный через портал настроек
+(`org.freedesktop.portal.Settings`; семейство, как его разрешает fontconfig, размер из пунктов в пиксели FMX:
+11 pt = 14,7), иначе семейство `sans-serif` из fontconfig и размер 12 (как у FMX);
+`FMXWAYLAND_FONT="семейство[,размер]"` меняет его. Всплывающие окна, открытые до того, как окно-родитель показано,
+ждут его (xdg-shell требует отображённого родителя).
+
+**FastCanvas (Vulkan):** [FastCanvas](https://github.com/Fasday/FMXFastCanvas) работает на FMXWayland нативно:
+окна верхнего уровня (формы, модальные формы, диалоги, `TForm3D`) презентуются в свои `wl_surface` через
+`VK_KHR_wayland_surface` из потока FastCanvas (режим `MAILBOX`, иначе `IMMEDIATE`, не `FIFO`), всплывающие окна и
+прозрачные формы FastCanvas рисует на GPU, считывает и отдаёт в кадр FMXWayland через `FmuxCanvasDrawBitmap`. Без
+GTK, X11, Skia и libfmux; проекты не зависят друг от друга при компиляции. Платформенный сервис
+`IFMXWaylandNativeWindow` (`{B04A2FBC-1322-42BC-98A6-D526A7854F2C}`) отдаёт `wl_display`, `wl_surface` окна, размер
+буфера и масштаб; `SetExternalPresentation` отключает наши wl_shm-кадры. Под внешней презентацией у окна есть
+`wp_viewport` (буфер любого размера валиден), состояние окна для нового размера (viewport, геометрия, декорации)
+отправляется рядом с подтверждением configure и перед каждой отрисовкой, окно считается отображённым после первой
+отрисовки; перед скрытием окна FastCanvas прекращает презентацию. Сборка Hello с FastCanvas:
+`.\tools\build.ps1 -Project samples\Hello\Hello.dpr -Define FASTCANVAS -SearchPath
+<FastCanvas>\src\Canvas,<FastCanvas>\third_party\pasvulkan\src`.
+Проверки: `tests\weston-headless.ps1 -Canvas TFastCanvas`, `tests\compositors.ps1 -Canvas TFastCanvas`. Подробности,
+контракт и результаты — в README.md (разделы «FastCanvas (Vulkan)» и «IFMXWaylandNativeWindow»).

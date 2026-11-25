@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{5C377B3B-2205-4C20-A3F3-EAE4C276BC28}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
@@ -239,11 +239,13 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Linux64)'!=''">
         <DCC_Namespace>FMX;Posix;Linuxapi;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>..\..\src;..\..\src\Protocols;C:\Users\Public\Documents\Embarcadero\Studio\37.0\CatalogRepository\FmxLinux\1.82\lib\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_Define>FMXWAYLAND_DPROJ;$(DCC_Define)</DCC_Define>
+        <FMXWaylandFmxLinuxArg Condition="'$(FMXWaylandFmxLinux)'!=''">-FmxLinux &quot;$(FMXWaylandFmxLinux)&quot;</FMXWaylandFmxLinuxArg>
+        <DCC_UnitSearchPath Condition="'$(FMXWaylandFmxLinux)'!=''">$(FMXWaylandFmxLinux)\lib\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\gen\Linux64\$(Config);..\..\src;..\..\src\Protocols;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_IncludePath>..\..\src;$(DCC_IncludePath)</DCC_IncludePath>
         <DCC_ResourcePath>.;$(DCC_ResourcePath)</DCC_ResourcePath>
-        <DCC_LibraryPath>$(BDS)\lib\linux64\$(Config);C:\Users\HemulGM\Documents\Embarcadero\Studio\SDKs\ubuntu20.04.sdk\usr\lib\x86_64-linux-gnu;C:\Users\HemulGM\Documents\Embarcadero\Studio\SDKs\ubuntu20.04.sdk\usr\lib\gcc\x86_64-linux-gnu\13</DCC_LibraryPath>
-        <PreBuildEvent><![CDATA[powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildProjectDirectory)\..\..\tools\prepare-ide-build.ps1" -Bds "$(BDS)" -GenDir "$(MSBuildProjectDirectory)" -OutputDir "$(MSBuildProjectDirectory)\$(DCC_ExeOutput)" -Config "$(Config)" -FmxLinux "$(BDSCOMMONDIR)\CatalogRepository\FmxLinux\1.82"]]></PreBuildEvent>
+        <PreBuildEvent><![CDATA[powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildProjectDirectory)\..\..\tools\prepare-ide-build.ps1" -Bds "$(BDS)" -GenDir "$(MSBuildProjectDirectory)\..\..\gen\Linux64\$(Config)" -OutputDir "$(MSBuildProjectDirectory)\$(DCC_ExeOutput)" -Config "$(Config)" $(FMXWaylandFmxLinuxArg)]]></PreBuildEvent>
         <PreBuildEventIgnoreExitCode>false</PreBuildEventIgnoreExitCode>
         <Debugger_Launcher>/usr/bin/gnome-terminal -- &quot;%debuggee%&quot;</Debugger_Launcher>
         <Manifest_File>(None)</Manifest_File>
@@ -332,7 +334,6 @@
             <Form>DemoWindow</Form>
             <FormType>fmx</FormType>
         </DCCReference>
-        <DCCReference Include="FMUX.Api.pas"/>
         <DCCReference Include="..\..\src\FMXWayland.Fmux.pas"/>
         <DCCReference Include="..\..\src\FMXWayland.Vulkan.pas"/>
         <DCCReference Include="..\..\src\FMXWayland.VulkanApi.pas"/>
@@ -372,6 +373,19 @@
         <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgActivationV1.pas"/>
         <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgDecorationUnstableV1.pas"/>
         <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgShell.pas"/>
+        <DCCReference Include="HelloTitleBar.pas"/>
+        <DCCReference Include="HelloBackendProbe.pas">
+            <Form>HelloBackendProbeForm</Form>
+            <FormType>fmx</FormType>
+        </DCCReference>
+        <DCCReference Include="..\..\src\FMXWayland.Backend.pas"/>
+        <DCCReference Include="..\..\src\FMXWayland.FmuxLoad.pas"/>
+        <DCCReference Include="..\..\src\FMXWayland.Frame.pas"/>
+        <DCCReference Include="..\..\src\FMXWayland.SystemFont.pas"/>
+        <DCCReference Include="..\..\src\FMXWayland.X11.pas"/>
+        <DCCReference Include="..\..\src\FMXWayland.Xlib.pas"/>
+        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgForeignUnstableV2.pas"/>
+        <DCCReference Include="..\..\src\Protocols\FMXWayland.Protocol.XdgToplevelIconV1.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -1399,20 +1413,4 @@
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
-    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Linux64'">
-        <PreBuildEvent>powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\prepare-ide-build.ps1&quot; -Bds &quot;$(BDS)&quot; -GenDir &quot;$(MSBuildProjectDirectory)&quot; -OutputDir &quot;$(MSBuildProjectDirectory)\$(DCC_ExeOutput)&quot; -Config &quot;$(Config)&quot; -FmxLinux &quot;$(BDSCOMMONDIR)\CatalogRepository\FmxLinux\1.82&quot;</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Linux64'">
-        <PreBuildEvent>powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\prepare-ide-build.ps1&quot; -Bds &quot;$(BDS)&quot; -GenDir &quot;$(MSBuildProjectDirectory)&quot; -OutputDir &quot;$(MSBuildProjectDirectory)\$(DCC_ExeOutput)&quot; -Config &quot;$(Config)&quot; -FmxLinux &quot;$(BDSCOMMONDIR)\CatalogRepository\FmxLinux\1.82&quot;</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
 </Project>

@@ -2,22 +2,26 @@
   Copyright (c) 2026 Fasday. MIT license, see LICENSE. }
 
 /// <summary>The Wayland side of FMXWayland, independent of FMX: the connection and its globals, outputs, the event
-/// loop (display fd + eventfd for wake-ups + timers), windows (xdg_toplevel / xdg_popup surfaces painted through
-/// wl_shm buffers), pointer, keyboard (xkbcommon, key repeat, compose), cursors and the clipboard.</summary>
+/// loop (display fd + eventfd for wake-ups + timers + watched descriptors), windows (xdg_toplevel / xdg_popup
+/// surfaces painted through wl_shm buffers, exported with xdg-foreign for other clients' dialogs), pointer, keyboard
+/// (xkbcommon, key repeat, compose), cursors and the clipboard.</summary>
 /// <remarks>Everything runs on the main thread except TWlDisplay.Wake. FMXWayland.Fmux adapts this to the FMUX API
 /// that FMX for Linux calls.</remarks>
-unit FMXWayland.Platform;
+unit FMXWayland.platform;
 
 interface
 
 {$SCOPEDENUMS ON}
 
 uses
-  System.SysUtils, System.Types, System.Classes, System.Generics.Collections, System.Generics.Defaults,
-  FMXWayland.Wayland, FMXWayland.Protocol.Wayland, FMXWayland.Protocol.XdgShell,
-  FMXWayland.Protocol.XdgDecorationUnstableV1, FMXWayland.Protocol.Viewporter, FMXWayland.Protocol.FractionalScaleV1,
-  FMXWayland.Protocol.CursorShapeV1, FMXWayland.Protocol.XdgActivationV1, FMXWayland.Xkb, FMXWayland.WaylandCursor,
-  FMXWayland.Protocol.TextInputUnstableV3, FMXWayland.TextInput, FMXWayland.DragDrop,
+  System.SysUtils, System.Types, System.Classes, System.Generics.Collections,
+  System.Generics.Defaults, FMXWayland.Wayland, FMXWayland.Protocol.Wayland,
+  FMXWayland.Protocol.XdgShell, FMXWayland.Protocol.XdgDecorationUnstableV1,
+  FMXWayland.Protocol.Viewporter, FMXWayland.Protocol.FractionalScaleV1,
+  FMXWayland.Protocol.CursorShapeV1, FMXWayland.Protocol.XdgActivationV1,
+  FMXWayland.Protocol.XdgForeignUnstableV2, FMXWayland.Xkb,
+  FMXWayland.WaylandCursor, FMXWayland.Protocol.TextInputUnstableV3,
+  FMXWayland.TextInput, FMXWayland.DragDrop,
   FMXWayland.Protocol.XdgToplevelIconV1;
 
 const
@@ -33,17 +37,22 @@ const
 
 type
   TWlDisplay = class;
+
   TWlWindow = class;
 
   /// <summary>What a window is on the Wayland side.</summary>
   TWlWindowKind = (Toplevel, Popup);
   /// <summary>State of a toplevel (the values of TFmuxWindowState / FMX TWindowState).</summary>
+
   TWlWindowState = (Normal, Minimized, Maximized);
   /// <summary>Kinds of pointer events delivered to windows.</summary>
+
   TWlPointerEvent = (Move, Down, Up, Wheel, Leave);
   /// <summary>Kinds of key events delivered to windows.</summary>
+
   TWlKeyEvent = (Down, Up);
   /// <summary>Parts of client-side decorations.</summary>
+
   TWlDecoPart = (None, Title, Minimize, Maximize, Close, Left, Right, Top, Bottom, TopLeft, TopRight, BottomLeft,
     BottomRight);
 
@@ -72,7 +81,8 @@ type
 
   /// <summary>The pixels of a frame being painted (handed to the canvas as its context): a wl_shm buffer of the
   /// window, premultiplied BGRA, Width x Height buffer pixels = logical size x Scale. The buffer may hold an older
-  /// frame (buffers rotate): whoever draws must draw all of it (the Skia raster canvas copies its whole back buffer).
+  /// frame (buffers rotate): whoever draws must draw all of it (the Skia raster canvas copies its whole back buffer;
+  /// FMX's cairo canvas paints into a retained frame and copies what changed since the frame the buffer holds).
   /// Bits is nil under external presentation.</summary>
   TWlFrame = record
     Bits: Pointer;
@@ -83,6 +93,7 @@ type
     /// <summary>Set by whoever drew into Bits: only then the buffer is attached and committed.</summary>
     Drawn: Boolean;
   end;
+
   PWlFrame = ^TWlFrame;
 
   /// <summary>A wl_output (monitor).</summary>
@@ -192,13 +203,46 @@ type
     FGeometryW: Integer;
     FGeometryH: Integer;
     FActivationToken: Pxdg_activation_token_v1;
+    // Where a popup asked to be (relative to the parent's window geometry), for diagnostics.
+    FPopupAskX: Integer;
+    FPopupAskY: Integer;
+    // The compositor switched the decorations (xdg-decoration) since the last configure: FMX's window rectangle
+    // (with the decorations) changes even when the size stays.
+    FDecoSwitched: Boolean;
+    FChangingDecorations: Boolean;
+    // The toplevel exported with xdg-foreign (ExportToplevel), its handle, and how many users it has.
+    FExported: Pzxdg_exported_v2;
+    FExportHandle: string;
+    FExportCount: Integer;
+    // Decorations the program wants (SetDecorated): False = none at all, neither the client-side ones nor the
+    // compositor's; kept across configures, decoration mode changes and hide/show.
+    FDecorated: Boolean;
+    // The mode the compositor gave with xdg-decoration (0 until it answers).
+    FDecoMode: UInt32;
+    // The states of the last configure as bits (1 shl xdg_toplevel.state), those of the configure being received,
+    // and the window manager's capabilities as bits (1 shl xdg_toplevel.wm_capabilities; $FFFFFFFF until it sends
+    // them); FCapabilitiesChanged: new capabilities, reported with the configure that follows them.
+    FStateBits: Cardinal;
+    FPendingStateBits: Cardinal;
+    FCapabilityBits: Cardinal;
+    FCapabilitiesChanged: Boolean;
+    // A popup shown while its parent was not mapped yet: its xdg_popup is made when the parent is (xdg-shell: "the
+    // parent of an xdg_popup must be mapped before the xdg_popup itself").
+    FPopupPending: Boolean;
+    FPendingOffset: TPointF;
+    // Show was called once: the size is the window's from then on (before, FMX keeps the program's to itself and
+    // sets it at the first show).
+    FShownOnce: Boolean;
     procedure ApplySizeHints;
     procedure ApplyIcon;
+    function PrefersClientDecorations: Boolean;
     procedure CreateToplevelRole;
+    procedure DestroyExport;
+    function DecoButtonAt(const AIndex: Integer): TWlDecoPart;
+    function DecoButtonCount: Integer;
     procedure EnableCsd;
     procedure DisableCsd;
-    procedure DecoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState: Integer;
-      const ASerial: UInt32);
+    procedure DecoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState: Integer; const ASerial: UInt32);
     procedure DecoAction(const APart: TWlDecoPart);
     procedure PaintDecorations;
     function TitleHeight: Integer;
@@ -208,12 +252,21 @@ type
     procedure CreatePopupRole;
     procedure DestroyRole;
     procedure HideChildPopups;
+    function CanParentPopups: Boolean;
+    procedure ParentMapped;
+    function HeldPress(out ASerial: UInt32): Boolean;
     function AcquireBuffer(const AWidth, AHeight: Integer): TWlBuffer;
     procedure UpdateScale;
     procedure HandleXdgConfigure(const ASerial: UInt32);
     function NeedsPaint(const ANow: Int64): Boolean;
     function GetBufferWidth: Integer;
     function GetBufferHeight: Integer;
+    procedure SetExternalPresentation(const AValue: Boolean);
+    /// <summary>The state that goes with the window's size: the viewport's destination (buffer scale 1) or the buffer
+    /// scale, the window geometry and the decorations. Under external presentation it is sent before the presenter
+    /// commits (when the compositor configures the window, before every paint), so that whatever buffer the presenter
+    /// commits next, even a frame of the size before, applies with the state of the configure acknowledged.</summary>
+    procedure ApplySurfaceState;
   protected
     function ButtonVisible(const Part: TWlDecoPart): Boolean;
     function DecoPartAt(const AX, AY: Single): TWlDecoPart;
@@ -234,18 +287,18 @@ type
     procedure DoPopupDone; virtual;
     /// <summary>Pointer event at (AX, AY) in logical window coordinates; AState = WL_STATE_* bits; AWheelDelta in
     /// 1/120 of a notch, positive = away from the user (scroll up), for Wheel.</summary>
-    procedure DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState, AWheelDelta: Integer);
-      virtual;
+    procedure DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState, AWheelDelta: Integer); virtual;
     /// <summary>Key event: AKey = FMX virtual key (0 for pure characters), AChar = character or #0.</summary>
     procedure DoKey(const AEvent: TWlKeyEvent; const AKey: Word; const AChar: Char; const AState: Integer); virtual;
-    function DoDrag(const Data: TWlDragData; const Event: TWlDragEvent; const Point: TPointF;
-      const Suggested: TWlDragOperation): TWlDragOperation; virtual;
+    function DoDrag(const Data: TWlDragData; const Event: TWlDragEvent; const Point: TPointF; const Suggested: TWlDragOperation): TWlDragOperation; virtual;
     /// <summary>The window's scale changed.</summary>
     procedure DoScaleChanged; virtual;
+    /// <summary>A configure changed the xdg_toplevel states (StateBits) or brought new capabilities of the window
+    /// manager (CapabilityBits).</summary>
+    procedure DoFrameChanged; virtual;
     /// <summary>Draws the title of client-side decorations into ARect (buffer pixels) of AFrame (premultiplied BGRA);
-    /// the core has no text renderer, the FMX layer draws it with an FMX bitmap.</summary>
-    procedure DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string; const AActive: Boolean);
-      virtual;
+    /// the core has no text renderer, the FMX layer draws it with an FMX bitmap (of the canvas FMX uses).</summary>
+    procedure DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string; const AActive: Boolean); virtual;
   public
     constructor Create(const ADisplay: TWlDisplay; const AKind: TWlWindowKind; const ATransparent: Boolean);
     destructor Destroy; override;
@@ -273,6 +326,12 @@ type
     /// <summary>Asks the compositor to activate (raise and focus) the window, with an xdg-activation token tied to the
     /// last input event; nothing happens without xdg_activation_v1 (the compositor may refuse anyway).</summary>
     procedure Activate;
+    /// <summary>Exports a shown toplevel with xdg-foreign (zxdg_exporter_v2) so that another client (a portal's
+    /// dialog) can make its window a child of it; returns the handle, or '' when the compositor lacks xdg-foreign.
+    /// Each call that returned a handle needs an UnexportToplevel.</summary>
+    function ExportToplevel: string;
+    /// <summary>Ends an ExportToplevel; the last one revokes the handle.</summary>
+    procedure UnexportToplevel;
     /// <summary>Marks a rectangle (logical coordinates) for repainting.</summary>
     procedure Invalidate(const ARect: TRectF);
     /// <summary>Marks the whole window for repainting.</summary>
@@ -289,6 +348,31 @@ type
     /// <summary>Prepares client decorations for unsupported/custom server frames before the first SetBounds.
     /// The compositor can override the requested mode through xdg-decoration.</summary>
     procedure PrepareDecorations;
+    /// <summary>False: no decorations for the toplevel, neither its own client-side ones nor the compositor's
+    /// (xdg-decoration mode client_side); the surface is all client area and the window geometry. True (default):
+    /// the platform's choice again. Kept until changed. A window on the screen keeps its outer size (the client area
+    /// takes or gives back the room of the decorations), one not configured yet keeps its client size; DoResized
+    /// reports the change. Before the first Show only the choice is recorded: no size changes, nothing reported (the
+    /// size the window gets at its show is its client area then).</summary>
+    procedure SetDecorated(const AValue: Boolean);
+    /// <summary>True when the toplevel has decorations now: its own (Csd) or the compositor's (xdg-decoration
+    /// server_side, asked or given).</summary>
+    function HasDecorations: Boolean;
+    /// <summary>An interactive move with the latest pointer button press on the window (its content or its
+    /// decorations), while that press is held: xdg_toplevel.move with its serial once the pointer is dragged 4 pixels
+    /// (a click stays a click). False without such a press or for popups.</summary>
+    function BeginMove: Boolean;
+    /// <summary>xdg_toplevel.resize (AEdges: an xdg_toplevel.resize_edge value other than none) with the serial of
+    /// the latest press held on the window; False without one, for popups or invalid edges.</summary>
+    function BeginResize(const AEdges: Cardinal): Boolean;
+    /// <summary>xdg_toplevel.show_window_menu at (AX, AY) in surface coordinates with the serial of the latest press
+    /// held on the window; False without one, for popups or without the window_menu capability.</summary>
+    function ShowWindowMenu(const AX, AY: Integer): Boolean;
+    /// <summary>xdg_toplevel.set_minimized (where the window manager can minimize); the state becomes Minimized
+    /// (DoStateChanged), as Wayland does not tell.</summary>
+    procedure Minimize;
+    /// <summary>xdg_toplevel.set_maximized or unset_maximized; the state follows with the configure.</summary>
+    procedure SetMaximized(const AValue: Boolean);
     property Display: TWlDisplay read FDisplay;
     /// <summary>The window currently draws its own decorations.</summary>
     property Csd: Boolean read FCsd;
@@ -312,8 +396,20 @@ type
     property Activated: Boolean read FActivated;
     property Title: string read FTitle;
     property Borderless: Boolean read FBorderless write FBorderless;
-    /// <summary>Someone else (a GPU canvas through Vulkan WSI) presents to the surface: no wl_shm frames.</summary>
-    property ExternalPresentation: Boolean read FExternalPresentation write FExternalPresentation;
+    /// <summary>What SetDecorated set (True by default).</summary>
+    property Decorated: Boolean read FDecorated;
+    /// <summary>The xdg_toplevel states of the last configure, as bits 1 shl state (maximized 1, fullscreen 2,
+    /// resizing 3, activated 4, tiled_left..tiled_bottom 5..8, suspended 9).</summary>
+    property StateBits: Cardinal read FStateBits;
+    /// <summary>The window manager's capabilities (xdg_toplevel.wm_capabilities) as bits 1 shl capability
+    /// (window_menu 1, maximize 2, fullscreen 3, minimize 4); $FFFFFFFF when it never sent them.</summary>
+    property CapabilityBits: Cardinal read FCapabilityBits;
+    /// <summary>Someone else (a GPU canvas through Vulkan WSI) presents to the surface: no wl_shm frames. The
+    /// surface gets a viewport (where the compositor has wp_viewporter) whose destination is the window's logical
+    /// size, so that a buffer of any size the presenter commits (a frame of the size before a resize, of the scale
+    /// before a scale change) is valid and fills the window; the window counts as mapped once the first paint after
+    /// it was shown has returned (the presenter has committed that frame by then).</summary>
+    property ExternalPresentation: Boolean read FExternalPresentation write SetExternalPresentation;
   end;
 
   /// <summary>A data offer (clipboard or drag-and-drop) and its MIME types.</summary>
@@ -347,6 +443,15 @@ type
     FProc: TProc;
   end;
 
+  /// <summary>A file descriptor the event loop watches (TWlDisplay.AddFdWatch).</summary>
+  TWlFdWatch = class
+  private
+    FId: NativeInt;
+    FFd: Integer;
+    FEvents: Int16;
+    FProc: TProc;
+  end;
+
   /// <summary>The connection to the compositor (one per process: WlDisplay).</summary>
   TWlDisplay = class
   private
@@ -368,6 +473,7 @@ type
     FDecorationManager: Pzxdg_decoration_manager_v1;
     FIconManager: Pxdg_toplevel_icon_manager_v1;
     FActivation: Pxdg_activation_v1;
+    FExporter: Pzxdg_exporter_v2;
     FTextInputManager: Pzwp_text_input_manager_v3;
     FTextInputManagerName: UInt32;
     FTextInput: TWaylandTextInput;
@@ -384,6 +490,8 @@ type
     FTerminated: Boolean;
     FTimers: TObjectDictionary<NativeInt, TWlTimer>;
     FNextTimerId: NativeInt;
+    FFdWatches: TObjectDictionary<NativeInt, TWlFdWatch>;
+    FNextFdWatchId: NativeInt;
     FAppId: string;
     // pointer
     FPointer: Pwl_pointer;
@@ -403,6 +511,14 @@ type
     FLastClickButton: Integer;
     FLastClickPos: TPointF;
     FLastClickWindow: TWlWindow;
+    // The latest button press on any surface of a window (content or decorations) while buttons are held: what
+    // xdg_toplevel.move/resize/show_window_menu need.
+    FPressSerial: UInt32;
+    FPressWindow: TWlWindow;
+    FPressButtons: Integer;
+    // A move asked for (TWlWindow.BeginMove) that starts once the pointer is dragged from where it was then.
+    FMoveWindow: TWlWindow;
+    FMoveFrom: TPointF;
     FCursor: Integer;
     FCursorTheme: Pwl_cursor_theme;
     FCursorThemeScale: Integer;
@@ -469,6 +585,7 @@ type
     procedure StopKeyRepeat;
     procedure DeliverKeyDown(const AKey: UInt32);
     procedure FlushAxis;
+    procedure StartMove;
     procedure ReleaseXkb;
     function ReadOffer(const AOffer: TWlDataOffer; const AMimeType: string; out AData: TBytes): Boolean;
     procedure CreateTextInput;
@@ -501,6 +618,11 @@ type
     /// <summary>A periodic timer of the loop; returns its id (never 0).</summary>
     function CreateTimer(const AIntervalMs: Integer; const AProc: TProc): NativeInt;
     function DestroyTimer(const AId: NativeInt): Boolean;
+    /// <summary>Watches a file descriptor in the event loop: AProc runs on the main thread, inside ProcessEvents,
+    /// while AFd has one of AEvents (POLLIN, POLLOUT) or an error; returns the id of the watch (never 0). The loop
+    /// polls it level-triggered: whoever watches must read (or remove the watch) when it is told.</summary>
+    function AddFdWatch(const AFd: Integer; const AEvents: Int16; const AProc: TProc): NativeInt;
+    function RemoveFdWatch(const AId: NativeInt): Boolean;
     /// <summary>Sets the pointer cursor (a System.UITypes TCursor value: crDefault, crIBeam, ...).</summary>
     procedure SetCursor(const ACursor: Integer);
     /// <summary>The primary output (at 0,0 or the first one), or nil.</summary>
@@ -517,13 +639,11 @@ type
     procedure ClipboardSetText(const AText: string);
     /// <summary>The globals the compositor announced ('wl_compositor:4,wl_shm:1,...'), for diagnostics.</summary>
     function GlobalsText: string;
-    procedure BeginTextInput(Window: TWlWindow; const State: TFunc<TWaylandTextState>;
-      const Apply: TProc<TWaylandTextBatch>; const Cancel: TProc);
+    procedure BeginTextInput(Window: TWlWindow; const State: TFunc<TWaylandTextState>; const Apply: TProc<TWaylandTextBatch>; const Cancel: TProc);
     procedure EndTextInput(Window: TWlWindow; Notify: Boolean = True);
     function HasTextInput: Boolean;
     /// <summary>Starts an outgoing drag using the current pointer press, never a keyboard serial.</summary>
-    function BeginDrag(Window: TWlWindow; const Data: TWlDragData;
-      const OnEnd: TProc<TWlDragOperation>; const Image: TWlDragImage): Boolean;
+    function BeginDrag(Window: TWlWindow; const Data: TWlDragData; const OnEnd: TProc<TWlDragOperation>; const Image: TWlDragImage): Boolean;
     procedure CancelDrag;
     property Display: Pwl_display read FDisplay;
     property Compositor: Pwl_compositor read FCompositor;
@@ -554,15 +674,17 @@ type
 /// <summary>The connection, after WlConnect.</summary>
 function WlDisplay: TWlDisplay;
 /// <summary>Creates and connects the connection (once).</summary>
+
 function WlConnect: TWlDisplay;
 /// <summary>Disconnects and frees the connection.</summary>
+
 procedure WlDisconnect;
 
 implementation
 
 uses
-  System.Math, System.UITypes, Posix.Unistd, Posix.SysMman, Posix.Errno, Posix.Fcntl, FMXWayland.Posix, FMXWayland.Log,
-  FMXWayland.Keys;
+  System.Math, System.UITypes, Posix.Unistd, Posix.SysMman, Posix.Errno,
+  Posix.Fcntl, FMXWayland.Posix, FMXWayland.Log, FMXWayland.Keys;
 
 var
   GDisplay: TWlDisplay = nil;
@@ -604,8 +726,7 @@ end;
 
 {$REGION 'Listeners: registry, output, wm_base, buffer, callback'}
 
-procedure RegistryGlobal(AData: Pointer; AWlRegistry: Pwl_registry; AName: UInt32; AInterface: PAnsiChar;
-  AVersion: UInt32); cdecl;
+procedure RegistryGlobal(AData: Pointer; AWlRegistry: Pwl_registry; AName: UInt32; AInterface: PAnsiChar; AVersion: UInt32); cdecl;
 begin
   TWlDisplay(AData).HandleGlobal(AName, Utf8ToStr(AInterface), AVersion);
 end;
@@ -618,8 +739,7 @@ end;
 const
   CRegistryListener: Twl_registry_listener = (global: RegistryGlobal; global_remove: RegistryGlobalRemove);
 
-procedure OutputGeometry(AData: Pointer; AWlOutput: Pwl_output; AX, AY, APhysicalWidth, APhysicalHeight,
-  ASubpixel: Int32; AMake, AModel: PAnsiChar; ATransform: Int32); cdecl;
+procedure OutputGeometry(AData: Pointer; AWlOutput: Pwl_output; AX, AY, APhysicalWidth, APhysicalHeight, ASubpixel: Int32; AMake, AModel: PAnsiChar; ATransform: Int32); cdecl;
 var
   O: TWlOutput;
 begin
@@ -652,7 +772,7 @@ var
 begin
   O := TWlOutput(AData);
   WlLog(TWlLogLevel.Debug, 'output %s "%s %s": %dx%d+%d+%d scale %d', [O.FName, O.FMake, O.FModel, O.FModeWidth,
-    O.FModeHeight, O.FX, O.FY, O.FScale]);
+      O.FModeHeight, O.FX, O.FY, O.FScale]);
 end;
 
 procedure OutputScale(AData: Pointer; AWlOutput: Pwl_output; AFactor: Int32); cdecl;
@@ -672,7 +792,7 @@ end;
 
 const
   COutputListener: Twl_output_listener = (geometry: OutputGeometry; mode: OutputMode; done: OutputDone;
-    scale: OutputScale; name: OutputName; description: OutputDescription);
+      scale: OutputScale; name: OutputName; description: OutputDescription);
 
 procedure WmBasePing(AData: Pointer; AXdgWmBase: Pxdg_wm_base; ASerial: UInt32); cdecl;
 begin
@@ -741,7 +861,7 @@ end;
 
 const
   CSurfaceListener: Twl_surface_listener = (enter: SurfaceEnter; leave: SurfaceLeave;
-    preferred_buffer_scale: SurfacePreferredBufferScale; preferred_buffer_transform: SurfacePreferredBufferTransform);
+      preferred_buffer_scale: SurfacePreferredBufferScale; preferred_buffer_transform: SurfacePreferredBufferTransform);
 
 procedure XdgSurfaceConfigure(AData: Pointer; AXdgSurface: Pxdg_surface; ASerial: UInt32); cdecl;
 begin
@@ -751,8 +871,7 @@ end;
 const
   CXdgSurfaceListener: Txdg_surface_listener = (configure: XdgSurfaceConfigure);
 
-procedure ToplevelConfigure(AData: Pointer; AXdgToplevel: Pxdg_toplevel; AWidth, AHeight: Int32;
-  AStates: Pwl_array); cdecl;
+procedure ToplevelConfigure(AData: Pointer; AXdgToplevel: Pxdg_toplevel; AWidth, AHeight: Int32; AStates: Pwl_array); cdecl;
 var
   W: TWlWindow;
   P: PCardinal;
@@ -764,11 +883,14 @@ begin
   W.FPendingMaximized := False;
   W.FPendingFullScreen := False;
   W.FPendingActivated := False;
+  W.FPendingStateBits := 0;
   if (AStates <> nil) and (AStates.data <> nil) then
   begin
     P := AStates.data;
     for I := 0 to Integer(AStates.size div SizeOf(Cardinal)) - 1 do
     begin
+      if P^ < 32 then
+        W.FPendingStateBits := W.FPendingStateBits or (Cardinal(1) shl P^);
       case P^ of
         XDG_TOPLEVEL_STATE_MAXIMIZED:
           W.FPendingMaximized := True;
@@ -790,42 +912,73 @@ end;
 procedure IconSize(AData: Pointer; Manager: Pxdg_toplevel_icon_manager_v1; Size: Int32); cdecl;
 begin
 end;
+
 procedure IconDone(AData: Pointer; Manager: Pxdg_toplevel_icon_manager_v1); cdecl;
 begin
 end;
-const CIconListener: Txdg_toplevel_icon_manager_v1_listener = (icon_size: IconSize; done: IconDone);
+
+const
+  CIconListener: Txdg_toplevel_icon_manager_v1_listener = (icon_size: IconSize; done: IconDone);
 
 procedure ToplevelConfigureBounds(AData: Pointer; AXdgToplevel: Pxdg_toplevel; AWidth, AHeight: Int32); cdecl;
 begin
 end;
 
 procedure ToplevelWmCapabilities(AData: Pointer; AXdgToplevel: Pxdg_toplevel; ACapabilities: Pwl_array); cdecl;
-var W: TWlWindow; P: PCardinal; I: Integer;
+var
+  W: TWlWindow;
+  P: PCardinal;
+  I: Integer;
+  S: string;
 begin
   W := TWlWindow(AData);
-  W.FCanMenu := False; W.FCanMinimize := False;
-  W.FCanMaximize := False; W.FCanFullscreen := False;
+  W.FCanMaximize := False;
+  W.FCanMinimize := False;
+  W.FCanMenu := False;
+  W.FCanFullscreen := False;
+  W.FCapabilityBits := 0;
+  S := '';
   if (ACapabilities <> nil) and (ACapabilities.data <> nil) then
   begin
     P := ACapabilities.data;
     for I := 0 to Integer(ACapabilities.size div SizeOf(Cardinal)) - 1 do
     begin
+      if P^ < 32 then
+        W.FCapabilityBits := W.FCapabilityBits or (Cardinal(1) shl P^);
       case P^ of
-        XDG_TOPLEVEL_WM_CAPABILITIES_WINDOW_MENU: W.FCanMenu := True;
-        XDG_TOPLEVEL_WM_CAPABILITIES_MINIMIZE: W.FCanMinimize := True;
-        XDG_TOPLEVEL_WM_CAPABILITIES_MAXIMIZE: W.FCanMaximize := True;
-        XDG_TOPLEVEL_WM_CAPABILITIES_FULLSCREEN: W.FCanFullscreen := True;
+        XDG_TOPLEVEL_WM_CAPABILITIES_WINDOW_MENU:
+          begin
+            W.FCanMenu := True;
+            S := S + ' window_menu';
+          end;
+        XDG_TOPLEVEL_WM_CAPABILITIES_MAXIMIZE:
+          begin
+            W.FCanMaximize := True;
+            S := S + ' maximize';
+          end;
+        XDG_TOPLEVEL_WM_CAPABILITIES_FULLSCREEN:
+          begin
+            W.FCanFullscreen := True;
+            S := S + ' fullscreen';
+          end;
+        XDG_TOPLEVEL_WM_CAPABILITIES_MINIMIZE:
+          begin
+            W.FCanMinimize := True;
+            S := S + ' minimize';
+          end;
       end;
       Inc(P);
     end;
   end;
+  WlLog(TWlLogLevel.Debug, 'wm capabilities of "%s":%s', [W.FTitle, S]);
+  // The title bar buttons follow (it takes effect with the configure that comes next).
   W.FDecoDirty := True;
-  W.InvalidateAll;
+  W.FCapabilitiesChanged := True;
 end;
 
 const
   CToplevelListener: Txdg_toplevel_listener = (configure: ToplevelConfigure; close: ToplevelClose;
-    configure_bounds: ToplevelConfigureBounds; wm_capabilities: ToplevelWmCapabilities);
+      configure_bounds: ToplevelConfigureBounds; wm_capabilities: ToplevelWmCapabilities);
 
 procedure PopupConfigure(AData: Pointer; AXdgPopup: Pxdg_popup; AX, AY, AWidth, AHeight: Int32); cdecl;
 var
@@ -833,6 +986,8 @@ var
   NewOrigin: TPointF;
 begin
   W := TWlWindow(AData);
+  WlLog(TWlLogLevel.Debug, 'popup configure %d,%d %dx%d (asked %d,%d %dx%d)', [AX, AY, AWidth, AHeight, W.FPopupAskX,
+      W.FPopupAskY, W.FWidth, W.FHeight]);
   if W.FParent <> nil then
   begin
     // AX, AY: relative to the parent's window geometry (its decorations included).
@@ -854,6 +1009,7 @@ end;
 
 procedure PopupDone(AData: Pointer; AXdgPopup: Pxdg_popup); cdecl;
 begin
+  WlLog(TWlLogLevel.Debug, 'popup dismissed by the compositor', []);
   TWlWindow(AData).DoPopupDone;
 end;
 
@@ -863,20 +1019,25 @@ end;
 
 const
   CPopupListener: Txdg_popup_listener = (configure: PopupConfigure; popup_done: PopupDone;
-    repositioned: PopupRepositioned);
+      repositioned: PopupRepositioned);
 
-procedure DecorationConfigure(AData: Pointer; AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1;
-  AMode: UInt32); cdecl;
+procedure DecorationConfigure(AData: Pointer; AZxdgToplevelDecorationV1: Pzxdg_toplevel_decoration_v1; AMode: UInt32); cdecl;
 var
   W: TWlWindow;
+  WasCsd: Boolean;
 begin
-  WlLog(TWlLogLevel.Debug, 'decoration mode %d', [AMode]);
+  WlLog(TWlLogLevel.Debug, 'decoration mode %d of "%s"', [AMode, TWlWindow(AData).FTitle]);
   W := TWlWindow(AData);
-  // The compositor wants the client to decorate (it may say so even though it offers the protocol).
+  W.FDecoMode := AMode;
+  WasCsd := W.FCsd;
+  // The compositor wants the client to decorate (it may say so even though it offers the protocol); not a window
+  // the program decorates itself (SetDecorated(False): EnableCsd refuses).
   if (AMode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE) and not W.FBorderless then
     W.EnableCsd
   else if AMode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE then
     W.DisableCsd;
+  if W.FCsd <> WasCsd then
+    W.FDecoSwitched := True;
 end;
 
 procedure DecoSurfaceEnter(AData: Pointer; AWlSurface: Pwl_surface; AOutput: Pwl_output); cdecl;
@@ -894,14 +1055,13 @@ end;
 const
   // The decoration surface's user data is its window (pointer events find it); its scale follows the window's.
   CDecoSurfaceListener: Twl_surface_listener = (enter: DecoSurfaceEnter; leave: DecoSurfaceLeave;
-    preferred_buffer_scale: DecoSurfacePreferredBufferScale;
-    preferred_buffer_transform: SurfacePreferredBufferTransform);
+      preferred_buffer_scale: DecoSurfacePreferredBufferScale;
+      preferred_buffer_transform: SurfacePreferredBufferTransform);
 
 const
   CDecorationListener: Tzxdg_toplevel_decoration_v1_listener = (configure: DecorationConfigure);
 
-procedure FractionalPreferredScale(AData: Pointer; AWpFractionalScaleV1: Pwp_fractional_scale_v1;
-  AScale: UInt32); cdecl;
+procedure FractionalPreferredScale(AData: Pointer; AWpFractionalScaleV1: Pwp_fractional_scale_v1; AScale: UInt32); cdecl;
 var
   W: TWlWindow;
 begin
@@ -913,14 +1073,14 @@ end;
 const
   CFractionalListener: Twp_fractional_scale_v1_listener = (preferred_scale: FractionalPreferredScale);
 
-procedure ActivationTokenDone(AData: Pointer; AXdgActivationTokenV1: Pxdg_activation_token_v1;
-  AToken: PAnsiChar); cdecl;
+procedure ActivationTokenDone(AData: Pointer; AXdgActivationTokenV1: Pxdg_activation_token_v1; AToken: PAnsiChar); cdecl;
 var
   W: TWlWindow;
 begin
   W := TWlWindow(AData);
   if W.FActivationToken = AXdgActivationTokenV1 then
   begin
+    WlLog(TWlLogLevel.Debug, 'activate "%s" with token %s', [W.FTitle, Utf8ToStr(AToken)]);
     xdg_activation_v1_activate(W.FDisplay.FActivation, AToken, W.FSurface);
     W.FActivationToken := nil;
   end;
@@ -929,6 +1089,18 @@ end;
 
 const
   CActivationTokenListener: Txdg_activation_token_v1_listener = (done: ActivationTokenDone);
+
+procedure ExportedHandle(AData: Pointer; AZxdgExportedV2: Pzxdg_exported_v2; AHandle: PAnsiChar); cdecl;
+var
+  W: TWlWindow;
+begin
+  W := TWlWindow(AData);
+  if W.FExported = AZxdgExportedV2 then
+    W.FExportHandle := Utf8ToStr(AHandle);
+end;
+
+const
+  CExportedListener: Tzxdg_exported_v2_listener = (handle: ExportedHandle);
 
 {$ENDREGION}
 
@@ -953,9 +1125,10 @@ const
   // Double-click: the second press of the same button within this time and distance.
   CDoubleClickMs = 400;
   CDoubleClickDistance = 4;
+  // A move asked for at a press starts when the pointer has gone this far (logical pixels) with the button held.
+  CDragThreshold = 4;
 
-procedure PointerEnter(AData: Pointer; AWlPointer: Pwl_pointer; ASerial: UInt32; ASurface: Pwl_surface;
-  ASurfaceX, ASurfaceY: Twl_fixed); cdecl;
+procedure PointerEnter(AData: Pointer; AWlPointer: Pwl_pointer; ASerial: UInt32; ASurface: Pwl_surface; ASurfaceX, ASurfaceY: Twl_fixed); cdecl;
 var
   D: TWlDisplay;
 begin
@@ -977,32 +1150,53 @@ begin
 end;
 
 procedure PointerLeave(AData: Pointer; AWlPointer: Pwl_pointer; ASerial: UInt32; ASurface: Pwl_surface); cdecl;
+const
+  CButtonBits: array[0..2] of Integer = (WL_STATE_LEFT, WL_STATE_RIGHT, WL_STATE_MIDDLE);
 var
   D: TWlDisplay;
   W: TWlWindow;
+  Held, Bit: Integer;
 begin
   D := TWlDisplay(AData);
   W := D.FPointerWindow;
+  Held := D.FButtons;
   D.FPointerWindow := nil;
   D.FButtons := 0;
   D.FDragPressWindow := nil;
   D.FDragPressSerial := 0;
+  // A press the compositor took over (an interactive move or resize, its window menu) ends here for the window.
+  D.FPressButtons := 0;
+  D.FPressWindow := nil;
+  D.FMoveWindow := nil;
   if W = nil then
     Exit;
   if D.FPointerOnDeco then
     W.DecoPointer(TWlPointerEvent.Leave, -1, -1, 0, ASerial)
   else
-    W.DoPointer(TWlPointerEvent.Leave, D.FPointerPos.X, D.FPointerPos.Y, D.FModState, 0);
+  begin
+    // Buttons still held: the release will not come to this surface. FMX gets it now, so the control that took the
+    // press (and the mouse capture) lets it go.
+    for Bit in CButtonBits do
+      if (Held and Bit <> 0) and D.FWindows.Contains(W) then
+        W.DoPointer(TWlPointerEvent.Up, D.FPointerPos.X, D.FPointerPos.Y, D.FModState or Bit, 0);
+    if D.FWindows.Contains(W) then
+      W.DoPointer(TWlPointerEvent.Leave, D.FPointerPos.X, D.FPointerPos.Y, D.FModState, 0);
+  end;
   D.FPointerOnDeco := False;
 end;
 
-procedure PointerMotion(AData: Pointer; AWlPointer: Pwl_pointer; ATime: UInt32; ASurfaceX,
-  ASurfaceY: Twl_fixed); cdecl;
+procedure PointerMotion(AData: Pointer; AWlPointer: Pwl_pointer; ATime: UInt32; ASurfaceX, ASurfaceY: Twl_fixed); cdecl;
 var
   D: TWlDisplay;
 begin
   D := TWlDisplay(AData);
   D.FPointerPos := PointF(wl_fixed_to_double(ASurfaceX), wl_fixed_to_double(ASurfaceY));
+  if D.FPointerWindow = nil then
+    Exit;
+  if (D.FMoveWindow <> nil) and (D.FMoveWindow = D.FPointerWindow) and
+    ((Abs(D.FPointerPos.X - D.FMoveFrom.X) >= CDragThreshold) or
+    (Abs(D.FPointerPos.Y - D.FMoveFrom.Y) >= CDragThreshold)) then
+    D.StartMove;
   if D.FPointerWindow = nil then
     Exit;
   if D.FPointerOnDeco then
@@ -1030,6 +1224,25 @@ begin
   end;
   W := D.FPointerWindow;
   D.FLastInputSerial := ASerial;
+  // Before the window hears of it: a press handler may start a move (IFMXWaylandWindowFrame.BeginMove) with it.
+  if AState = WL_POINTER_BUTTON_STATE_PRESSED then
+  begin
+    D.FPressButtons := D.FPressButtons or Bit;
+    D.FPressSerial := ASerial;
+    D.FPressWindow := W;
+    D.FMoveWindow := nil;
+  end
+  else
+  begin
+    D.FPressButtons := D.FPressButtons and not Bit;
+    if D.FPressButtons = 0 then
+      D.FPressWindow := nil;
+    // Released without a drag: a click, no move.
+    D.FMoveWindow := nil;
+  end;
+  if WlLogEnabled(TWlLogLevel.Trace) then
+    WlLog(TWlLogLevel.Trace, 'button %x state %d time %u at %.1f,%.1f (last press %u)', [AButton, AState, ATime,
+        D.FPointerPos.X, D.FPointerPos.Y, D.FLastClickTime]);
   if (W <> nil) and D.FPointerOnDeco then
   begin
     if AState = WL_POINTER_BUTTON_STATE_PRESSED then
@@ -1065,7 +1278,11 @@ begin
   else
   begin
     D.FButtons := D.FButtons and not Bit;
-    if D.FButtons = 0 then begin D.FDragPressWindow := nil; D.FDragPressSerial := 0; end;
+    if D.FButtons = 0 then
+    begin
+      D.FDragPressWindow := nil;
+      D.FDragPressSerial := 0;
+    end;
     if W <> nil then
       W.DoPointer(TWlPointerEvent.Up, D.FPointerPos.X, D.FPointerPos.Y, D.FModState or Bit, 0);
   end;
@@ -1116,18 +1333,16 @@ end;
 
 const
   CPointerListener: Twl_pointer_listener = (enter: PointerEnter; leave: PointerLeave; motion: PointerMotion;
-    button: PointerButton; axis: PointerAxis; frame: PointerFrame; axis_source: PointerAxisSource;
-    axis_stop: PointerAxisStop; axis_discrete: PointerAxisDiscrete; axis_value120: PointerAxisValue120;
-    axis_relative_direction: PointerAxisRelativeDirection);
+      button: PointerButton; axis: PointerAxis; frame: PointerFrame; axis_source: PointerAxisSource;
+      axis_stop: PointerAxisStop; axis_discrete: PointerAxisDiscrete; axis_value120: PointerAxisValue120;
+      axis_relative_direction: PointerAxisRelativeDirection);
 
-procedure KeyboardKeymap(AData: Pointer; AWlKeyboard: Pwl_keyboard; AFormat: UInt32; AFd: Int32; ASize: UInt32);
-  cdecl;
+procedure KeyboardKeymap(AData: Pointer; AWlKeyboard: Pwl_keyboard; AFormat: UInt32; AFd: Int32; ASize: UInt32); cdecl;
 begin
   TWlDisplay(AData).HandleKeymap(AFormat, AFd, ASize);
 end;
 
-procedure KeyboardEnter(AData: Pointer; AWlKeyboard: Pwl_keyboard; ASerial: UInt32; ASurface: Pwl_surface;
-  AKeys: Pwl_array); cdecl;
+procedure KeyboardEnter(AData: Pointer; AWlKeyboard: Pwl_keyboard; ASerial: UInt32; ASurface: Pwl_surface; AKeys: Pwl_array); cdecl;
 var
   D: TWlDisplay;
 begin
@@ -1154,8 +1369,7 @@ begin
   D.HandleKey(AKey, AState = WL_KEYBOARD_KEY_STATE_PRESSED);
 end;
 
-procedure KeyboardModifiers(AData: Pointer; AWlKeyboard: Pwl_keyboard; ASerial, AModsDepressed, AModsLatched,
-  AModsLocked, AGroup: UInt32); cdecl;
+procedure KeyboardModifiers(AData: Pointer; AWlKeyboard: Pwl_keyboard; ASerial, AModsDepressed, AModsLatched, AModsLocked, AGroup: UInt32); cdecl;
 begin
   TWlDisplay(AData).HandleModifiers(AModsDepressed, AModsLatched, AModsLocked, AGroup);
 end;
@@ -1171,7 +1385,7 @@ end;
 
 const
   CKeyboardListener: Twl_keyboard_listener = (keymap: KeyboardKeymap; enter: KeyboardEnter; leave: KeyboardLeave;
-    key: KeyboardKey; modifiers: KeyboardModifiers; repeat_info: KeyboardRepeatInfo);
+      key: KeyboardKey; modifiers: KeyboardModifiers; repeat_info: KeyboardRepeatInfo);
 
 {$ENDREGION}
 
@@ -1198,7 +1412,7 @@ end;
 
 const
   CDataOfferListener: Twl_data_offer_listener = (offer: DataOfferOffer; source_actions: DataOfferSourceActions;
-    action: DataOfferAction);
+      action: DataOfferAction);
 
 procedure DataDeviceDataOffer(AData: Pointer; AWlDataDevice: Pwl_data_device; AId: Pwl_data_offer); cdecl;
 var
@@ -1211,8 +1425,7 @@ begin
   wl_data_offer_add_listener(AId, @CDataOfferListener, O);
 end;
 
-procedure DataDeviceEnter(AData: Pointer; AWlDataDevice: Pwl_data_device; ASerial: UInt32; ASurface: Pwl_surface;
-  AX, AY: Twl_fixed; AId: Pwl_data_offer); cdecl;
+procedure DataDeviceEnter(AData: Pointer; AWlDataDevice: Pwl_data_device; ASerial: UInt32; ASurface: Pwl_surface; AX, AY: Twl_fixed; AId: Pwl_data_offer); cdecl;
 var
   D: TWlDisplay;
   Fds: array[0..1] of Integer;
@@ -1223,29 +1436,45 @@ begin
   D.FDragWindow := D.WindowFromSurface(ASurface);
   D.FDragSerial := ASerial;
   D.FDragPos := PointF(wl_fixed_to_double(AX), wl_fixed_to_double(AY));
-  if AId <> nil then D.FOffers.TryGetValue(AId, D.FDragOffer);
+  if AId <> nil then
+    D.FOffers.TryGetValue(AId, D.FDragOffer);
   if (D.FDragWindow = nil) or (D.FDragWindow.FDecoSurface = ASurface) or (D.FDragOffer = nil) then
   begin
-    if AId <> nil then wl_data_offer_accept(AId, ASerial, nil);
+    if AId <> nil then
+      wl_data_offer_accept(AId, ASerial, nil);
     Exit;
   end;
   if (D.FDragSource <> nil) and D.FDragOffer.HasMimeType(string(D.FDragInternalMime)) then
   begin
-    D.FDragData := D.FDragSourceData; D.FDragData.Internal := True;
-    D.FDragMime := string(D.FDragInternalMime); D.FDragReady := True;
-    D.UpdateDrag; Exit;
+    D.FDragData := D.FDragSourceData;
+    D.FDragData.Internal := True;
+    D.FDragMime := string(D.FDragInternalMime);
+    D.FDragReady := True;
+    D.UpdateDrag;
+    Exit;
   end;
-  if D.FDragOffer.HasMimeType(DragUriMime) then D.FDragMime := DragUriMime
-  else for M in [DragTextMime, 'text/plain', 'UTF8_STRING', 'TEXT', 'STRING'] do
-    if D.FDragOffer.HasMimeType(M) then begin D.FDragMime := M; Break; end;
+  if D.FDragOffer.HasMimeType(DragUriMime) then
+    D.FDragMime := DragUriMime
+  else
+    for M in [DragTextMime, 'text/plain', 'UTF8_STRING', 'TEXT', 'STRING'] do
+      if D.FDragOffer.HasMimeType(M) then
+      begin
+        D.FDragMime := M;
+        Break;
+      end;
   // Fetch before drop so OnDragOver can inspect the actual text or file names.
   if (D.FDragMime = '') or (pipe2(@Fds[0], O_CLOEXEC or EFD_NONBLOCK) <> 0) then
-  begin wl_data_offer_accept(AId, ASerial, nil); Exit; end;
-  D.FDragReadFd := Fds[0]; D.FDragReadDeadline := MonotonicMs + 10000;
+  begin
+    wl_data_offer_accept(AId, ASerial, nil);
+    Exit;
+  end;
+  D.FDragReadFd := Fds[0];
+  D.FDragReadDeadline := MonotonicMs + 10000;
   wl_data_offer_accept(AId, ASerial, PAnsiChar(UTF8String(D.FDragMime)));
   wl_data_offer_receive(AId, PAnsiChar(UTF8String(D.FDragMime)), Fds[1]);
   CloseFd(Fds[1]);
-  if wl_data_offer_get_version(AId) >= 3 then wl_data_offer_set_actions(AId, 0, 0);
+  if wl_data_offer_get_version(AId) >= 3 then
+    wl_data_offer_set_actions(AId, 0, 0);
   D.Flush;
 end;
 
@@ -1255,23 +1484,29 @@ var
 begin
   D := TWlDisplay(AData);
   // A successful drop owns the offer until its asynchronous transfer finishes.
-  if not D.FDragDropped then D.ClearDragOffer(True);
+  if not D.FDragDropped then
+    D.ClearDragOffer(True);
 end;
 
 procedure DataDeviceMotion(AData: Pointer; AWlDataDevice: Pwl_data_device; ATime: UInt32; AX, AY: Twl_fixed); cdecl;
-var D: TWlDisplay;
+var
+  D: TWlDisplay;
 begin
   D := TWlDisplay(AData);
-  if D.FDragDropped then Exit;
+  if D.FDragDropped then
+    Exit;
   D.FDragPos := PointF(wl_fixed_to_double(AX), wl_fixed_to_double(AY));
   D.UpdateDrag;
 end;
 
 procedure DataDeviceDrop(AData: Pointer; AWlDataDevice: Pwl_data_device); cdecl;
-var D: TWlDisplay;
+var
+  D: TWlDisplay;
 begin
-  D := TWlDisplay(AData); D.FDragDropped := True;
-  if D.FDragReady then D.DropDrag;
+  D := TWlDisplay(AData);
+  D.FDragDropped := True;
+  if D.FDragReady then
+    D.DropDrag;
 end;
 
 procedure DataDeviceSelection(AData: Pointer; AWlDataDevice: Pwl_data_device; AId: Pwl_data_offer); cdecl;
@@ -1296,7 +1531,7 @@ end;
 
 const
   CDataDeviceListener: Twl_data_device_listener = (data_offer: DataDeviceDataOffer; enter: DataDeviceEnter;
-    leave: DataDeviceLeave; motion: DataDeviceMotion; drop: DataDeviceDrop; selection: DataDeviceSelection);
+      leave: DataDeviceLeave; motion: DataDeviceMotion; drop: DataDeviceDrop; selection: DataDeviceSelection);
 
 procedure DataSourceTarget(AData: Pointer; AWlDataSource: Pwl_data_source; AMimeType: PAnsiChar); cdecl;
 begin
@@ -1309,12 +1544,16 @@ var
   Mime: string;
 begin
   D := TWlDisplay(AData);
-  Mime := Utf8ToStr(AMimeType); Bytes := '';
-  if AWlDataSource = D.FOwnSource then Bytes := D.FOwnText
+  Mime := Utf8ToStr(AMimeType);
+  Bytes := '';
+  if AWlDataSource = D.FOwnSource then
+    Bytes := D.FOwnText
   else if AWlDataSource = D.FDragSource then
   begin
-    if Mime = DragUriMime then Bytes := D.FDragSourceUris
-    else if (Mime = DragTextMime) or (Mime = 'text/plain') then Bytes := D.FDragSourceText;
+    if Mime = DragUriMime then
+      Bytes := D.FDragSourceUris
+    else if (Mime = DragTextMime) or (Mime = 'text/plain') then
+      Bytes := D.FDragSourceText;
   end;
   D.QueueDataWrite(AFd, Bytes);
 end;
@@ -1324,7 +1563,11 @@ var
   D: TWlDisplay;
 begin
   D := TWlDisplay(AData);
-  if D.FDragSource = AWlDataSource then begin D.EndDrag(TWlDragOperation.None); Exit; end;
+  if D.FDragSource = AWlDataSource then
+  begin
+    D.EndDrag(TWlDragOperation.None);
+    Exit;
+  end;
   if D.FOwnSource = AWlDataSource then
   begin
     D.FOwnSource := nil;
@@ -1335,29 +1578,36 @@ end;
 
 procedure DataSourceDndDropPerformed(AData: Pointer; AWlDataSource: Pwl_data_source); cdecl;
 begin
-  if TWlDisplay(AData).FDragSource = AWlDataSource then TWlDisplay(AData).ClearDragIcon;
+  if TWlDisplay(AData).FDragSource = AWlDataSource then
+    TWlDisplay(AData).ClearDragIcon;
 end;
 
 procedure DataSourceDndFinished(AData: Pointer; AWlDataSource: Pwl_data_source); cdecl;
-var D: TWlDisplay; Op: TWlDragOperation;
+var
+  D: TWlDisplay;
+  Op: TWlDragOperation;
 begin
   D := TWlDisplay(AData);
-  if D.FDragSource <> AWlDataSource then Exit;
+  if D.FDragSource <> AWlDataSource then
+    Exit;
   Op := TWlDragOperation.None;
-  if D.FDragSourceAction = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY then Op := TWlDragOperation.Copy;
-  if D.FDragSourceAction = WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE then Op := TWlDragOperation.Move;
+  if D.FDragSourceAction = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY then
+    Op := TWlDragOperation.Copy;
+  if D.FDragSourceAction = WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE then
+    Op := TWlDragOperation.Move;
   D.EndDrag(Op);
 end;
 
 procedure DataSourceAction(AData: Pointer; AWlDataSource: Pwl_data_source; ADndAction: UInt32); cdecl;
 begin
-  if TWlDisplay(AData).FDragSource = AWlDataSource then TWlDisplay(AData).FDragSourceAction := ADndAction;
+  if TWlDisplay(AData).FDragSource = AWlDataSource then
+    TWlDisplay(AData).FDragSourceAction := ADndAction;
 end;
 
 const
   CDataSourceListener: Twl_data_source_listener = (target: DataSourceTarget; send: DataSourceSend;
-    cancelled: DataSourceCancelled; dnd_drop_performed: DataSourceDndDropPerformed;
-    dnd_finished: DataSourceDndFinished; action: DataSourceAction);
+      cancelled: DataSourceCancelled; dnd_drop_performed: DataSourceDndDropPerformed;
+      dnd_finished: DataSourceDndFinished; action: DataSourceAction);
 
 {$ENDREGION}
 
@@ -1458,8 +1708,13 @@ begin
   FKind := AKind;
   FTransparent := ATransparent;
   FResizable := True;
-  FSystemMenu := True; FMinimize := True; FMaximize := True;
-  FCanMenu := True; FCanMinimize := True; FCanMaximize := True; FCanFullscreen := True;
+  FSystemMenu := True;
+  FMinimize := True;
+  FMaximize := True;
+  FCanMenu := True;
+  FCanMinimize := True;
+  FCanMaximize := True;
+  FCanFullscreen := True;
   FBuffers := TObjectList<TWlBuffer>.Create(True);
   FDecoBuffers := TObjectList<TWlBuffer>.Create(True);
   FEnteredOutputs := TList<Pwl_output>.Create;
@@ -1469,6 +1724,8 @@ begin
   FIntScale := 1;
   FLastBufferScale := 1;
   FDirty := TRectF.Empty;
+  FCapabilityBits := $FFFFFFFF;
+  FDecorated := True;
   FSurface := wl_compositor_create_surface(ADisplay.FCompositor);
   // The listener's data is the proxy's user data: WindowFromSurface finds the window through it.
   wl_surface_add_listener(FSurface, @CSurfaceListener, Self);
@@ -1540,8 +1797,7 @@ procedure TWlWindow.DoPaint(const AFrame: PWlFrame; const ADirty: TRectF);
 begin
 end;
 
-procedure TWlWindow.DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState,
-  AWheelDelta: Integer);
+procedure TWlWindow.DoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState, AWheelDelta: Integer);
 begin
 end;
 
@@ -1558,6 +1814,10 @@ begin
 end;
 
 procedure TWlWindow.DoStateChanged(const AState: TWlWindowState);
+begin
+end;
+
+procedure TWlWindow.DoFrameChanged;
 begin
 end;
 
@@ -1622,10 +1882,11 @@ begin
   begin
     FDecoration := zxdg_decoration_manager_v1_get_toplevel_decoration(FDisplay.FDecorationManager, FToplevel);
     zxdg_toplevel_decoration_v1_add_listener(FDecoration, @CDecorationListener, Self);
-    if FBorderless or FCsd then
-      zxdg_toplevel_decoration_v1_set_mode(FDecoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE)
+    if FBorderless or not FDecorated or FCsd then
+      FDecoMode := ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
     else
-      zxdg_toplevel_decoration_v1_set_mode(FDecoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+      FDecoMode := ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+    zxdg_toplevel_decoration_v1_set_mode(FDecoration, FDecoMode);
   end;
 end;
 
@@ -1654,12 +1915,16 @@ begin
   Result := GetEnvironmentVariable('FMXWAYLAND_CSD') <> '0';
 end;
 
+function TWlWindow.PrefersClientDecorations: Boolean;
+begin
+  Result := (FDisplay.FDecorationManager = nil) or FToolWindow or not FResizable or
+    not (FSystemMenu and FMinimize and FMaximize) or
+    (GetEnvironmentVariable('FMXWAYLAND_DECORATIONS') = 'client');
+end;
+
 procedure TWlWindow.PrepareDecorations;
 begin
-  if (FKind = TWlWindowKind.Toplevel) and not FBorderless and ((FDisplay.FDecorationManager = nil) or FToolWindow or not FResizable or
-    not (FSystemMenu and FMinimize and FMaximize) or
-    (GetEnvironmentVariable('FMXWAYLAND_DECORATIONS') = 'client')) and
-    DecoEnvAllowed then
+  if (FKind = TWlWindowKind.Toplevel) and not FBorderless and FDecorated and PrefersClientDecorations then
     EnableCsd;
 end;
 
@@ -1667,7 +1932,7 @@ procedure TWlWindow.EnableCsd;
 var
   OldInsets: TRect;
 begin
-  if FCsd or (FDisplay.FSubcompositor = nil) or not DecoEnvAllowed then
+  if FCsd or not FDecorated or (FDisplay.FSubcompositor = nil) or not DecoEnvAllowed then
     Exit;
   OldInsets := DecorationInsets;
   FDecoSurface := wl_compositor_create_surface(FDisplay.FCompositor);
@@ -1677,7 +1942,8 @@ begin
   FCsd := True;
   FDecoDirty := True;
   FGeometryW := -1;
-  DoDecorationChanged(OldInsets);
+  if not FChangingDecorations then
+    DoDecorationChanged(OldInsets);
   ApplySizeHints;
   InvalidateAll;
 end;
@@ -1698,7 +1964,8 @@ begin
   FDecoSurface := nil;
   FDecoBuffers.Clear;
   FGeometryW := -1;
-  DoDecorationChanged(OldInsets);
+  if not FChangingDecorations then
+    DoDecorationChanged(OldInsets);
   ApplySizeHints;
   InvalidateAll;
 end;
@@ -1721,6 +1988,176 @@ end;
 function TWlWindow.NormalDecorationInsets: TRect;
 begin
   Result := InsetsFor(TWlWindowState.Normal, False);
+end;
+
+procedure TWlWindow.SetDecorated(const AValue: Boolean);
+var
+  Old, New, OldNormal, NewNormal: TRect;
+  KeepOuter: Boolean;
+begin
+  if (FKind <> TWlWindowKind.Toplevel) or (AValue = FDecorated) then
+    Exit;
+  Old := DecorationInsets;
+  OldNormal := InsetsFor(TWlWindowState.Normal, False);
+  FDecorated := AValue;
+  FChangingDecorations := True;
+  try
+    if AValue then
+    begin
+      // The platform's choice again: the compositor's decorations where it offers them (it may answer client-side:
+      // DecorationConfigure enables the window's own then), else the window's own.
+      if FDecoration <> nil then
+      begin
+        // The mode asked for counts until the compositor answers (DecorationConfigure).
+        if FBorderless or PrefersClientDecorations then
+          FDecoMode := ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
+        else
+          FDecoMode := ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+        zxdg_toplevel_decoration_v1_set_mode(FDecoration, FDecoMode);
+      end
+      else if not FBorderless and DecoEnvAllowed and ((FDisplay.FDecorationManager = nil) or
+        (FDecoMode = ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE)) then
+        EnableCsd;
+    end
+    else
+    begin
+      DisableCsd;
+      if FDecoration <> nil then
+      begin
+        FDecoMode := ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
+        zxdg_toplevel_decoration_v1_set_mode(FDecoration, FDecoMode);
+      end;
+      // The window geometry is the surface from now on (also where it was never set: server-side decorations).
+      FGeometryW := -1;
+    end;
+  finally
+    FChangingDecorations := False;
+  end;
+  WlLog(TWlLogLevel.Debug, 'decorations of "%s": %s (own title bar %s)', [FTitle, BoolToStr(AValue, True),
+      BoolToStr(FCsd, True)]);
+  New := DecorationInsets;
+  NewNormal := InsetsFor(TWlWindowState.Normal, False);
+  if Old <> New then
+  begin
+    // On the screen the window keeps its outer size and place (as when the compositor switches the decoration
+    // mode; a maximized window must keep the configured size): the client area takes or gives back the room of
+    // the decorations. Before that the client area keeps the size the program gave it.
+    KeepOuter := FConfigured;
+    if KeepOuter then
+    begin
+      FOrigin := PointF(FOrigin.X + New.Left - Old.Left, FOrigin.Y + New.Top - Old.Top);
+      FWidth := Max(1, FWidth + Old.Left + Old.Right - New.Left - New.Right);
+      FHeight := Max(1, FHeight + Old.Top + Old.Bottom - New.Top - New.Bottom);
+    end;
+    if (FNormalWidth > 0) and KeepOuter then
+    begin
+      FNormalWidth := Max(1, FNormalWidth + OldNormal.Left + OldNormal.Right - NewNormal.Left - NewNormal.Right);
+      FNormalHeight := Max(1, FNormalHeight + OldNormal.Top + OldNormal.Bottom - NewNormal.Top - NewNormal.Bottom);
+    end;
+    FFullDamage := True;
+    InvalidateAll;
+  end;
+  ApplySizeHints;
+  FDisplay.Flush;
+  // FMX's window rectangle (with the decorations) and maybe its client size changed. Not before the first show:
+  // FMX keeps the size the program gives the form until then and sets it at the show (SetWindowRect, the client
+  // area without the decorations' room now); bounds reported now would replace it with the window's provisional
+  // ones.
+  if FShownOnce then
+    DoResized;
+end;
+
+function TWlWindow.HasDecorations: Boolean;
+begin
+  if FKind <> TWlWindowKind.Toplevel then
+    Exit(False);
+  if FCsd then
+    Exit(True);
+  // The compositor's: asked for (server_side) and not refused.
+  Result := FDecorated and not FBorderless and (FDisplay.FDecorationManager <> nil) and
+    (FDecoMode <> ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+end;
+
+function TWlWindow.HeldPress(out ASerial: UInt32): Boolean;
+begin
+  ASerial := FDisplay.FPressSerial;
+  Result := (FDisplay.FSeat <> nil) and (FDisplay.FPressWindow = Self) and (FDisplay.FPressButtons <> 0);
+end;
+
+function TWlWindow.BeginMove: Boolean;
+var
+  Serial: UInt32;
+begin
+  // As GTK does: the move starts when the pointer is dragged while the button is held (TWlDisplay.DragMove), so a
+  // click - also each click of a double click - stays the window's. (A compositor taking the pointer at the press
+  // lets the release go, and GNOME Shell moves a maximized window it got that way to the top left on restore.)
+  Result := (FToplevel <> nil) and FVisible and HeldPress(Serial);
+  if Result then
+  begin
+    FDisplay.FMoveWindow := Self;
+    FDisplay.FMoveFrom := FDisplay.FPointerPos;
+  end;
+  WlLog(TWlLogLevel.Debug, 'move of "%s" asked: %s', [FTitle, BoolToStr(Result, True)]);
+end;
+
+function TWlWindow.BeginResize(const AEdges: Cardinal): Boolean;
+var
+  Serial: UInt32;
+begin
+  // Other values are a protocol error (invalid_resize_edge).
+  Result := (AEdges in [XDG_TOPLEVEL_RESIZE_EDGE_TOP, XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM, XDG_TOPLEVEL_RESIZE_EDGE_LEFT,
+      XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT, XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT, XDG_TOPLEVEL_RESIZE_EDGE_RIGHT,
+      XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT, XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT]) and (FToplevel <> nil) and
+    FVisible and HeldPress(Serial);
+  if Result then
+  begin
+    xdg_toplevel_resize(FToplevel, FDisplay.FSeat, Serial, AEdges);
+    FDisplay.Flush;
+  end;
+  WlLog(TWlLogLevel.Debug, 'resize (edges %d) of "%s" asked: %s', [AEdges, FTitle, BoolToStr(Result, True)]);
+end;
+
+function TWlWindow.ShowWindowMenu(const AX, AY: Integer): Boolean;
+var
+  Serial: UInt32;
+begin
+  Result := (FToplevel <> nil) and FVisible and FCanMenu and HeldPress(Serial);
+  if Result then
+  begin
+    xdg_toplevel_show_window_menu(FToplevel, FDisplay.FSeat, Serial, AX, AY);
+    FDisplay.Flush;
+  end;
+  WlLog(TWlLogLevel.Debug, 'window menu of "%s" at %d,%d asked: %s', [FTitle, AX, AY, BoolToStr(Result, True)]);
+end;
+
+procedure TWlWindow.Minimize;
+begin
+  if (FToplevel = nil) or not FVisible or not FCanMinimize then
+    Exit;
+  xdg_toplevel_set_minimized(FToplevel);
+  FDisplay.Flush;
+  // Wayland does not tell about minimized windows: the state is the request's.
+  FState := TWlWindowState.Minimized;
+  DoStateChanged(FState);
+end;
+
+procedure TWlWindow.SetMaximized(const AValue: Boolean);
+begin
+  if AValue and not FCanMaximize then
+    Exit;
+  if (FToplevel = nil) or not FVisible then
+  begin
+    if AValue then
+      SetState(TWlWindowState.Maximized)
+    else
+      SetState(TWlWindowState.Normal);
+    Exit;
+  end;
+  if AValue then
+    xdg_toplevel_set_maximized(FToplevel)
+  else
+    xdg_toplevel_unset_maximized(FToplevel);
+  FDisplay.Flush;
 end;
 
 procedure TWlWindow.DoDecorationChanged(const OldInsets: TRect);
@@ -1785,32 +2222,43 @@ end;
 
 function TWlWindow.TitleHeight: Integer;
 begin
-  if FToolWindow then Result := 24 else Result := CDecoTitleHeight;
+  if FToolWindow then
+    Result := 24
+  else
+    Result := CDecoTitleHeight;
 end;
 
 procedure TWlWindow.PaintWindowIcon(const Frame: TWlFrame; const X, Y, Size: Integer);
-var I, J: Integer; Src, Dst, A: Cardinal; Pixel: PCardinal;
+var
+  I, J: Integer;
+  Src, Dst, A: Cardinal;
+  Pixel: PCardinal;
 begin
-  if (FIconSize = 0) or not FSystemMenu then Exit;
+  if (FIconSize = 0) or not FSystemMenu then
+    Exit;
   for J := 0 to Size - 1 do
     for I := 0 to Size - 1 do
-      if (X+I >= 0) and (X+I < Frame.Width) and (Y+J >= 0) and (Y+J < Frame.Height) then
+      if (X + I >= 0) and (X + I < Frame.Width) and (Y + J >= 0) and (Y + J < Frame.Height) then
       begin
-        Src := FIconPixels[(J*FIconSize div Size)*FIconSize + I*FIconSize div Size];
+        Src := FIconPixels[(J * FIconSize div Size) * FIconSize + I * FIconSize div Size];
         A := Src shr 24;
-        Pixel := PCardinal(PByte(Frame.Bits) + NativeInt(Y+J)*Frame.Stride + (X+I)*4);
+        Pixel := PCardinal(PByte(Frame.Bits) + NativeInt(Y + J) * Frame.Stride + (X + I) * 4);
         Dst := Pixel^;
         Pixel^ := $FF000000 or
-          (Min(255, ((Src shr 16) and 255) + ((Dst shr 16) and 255)*(255-A) div 255) shl 16) or
-          (Min(255, ((Src shr 8) and 255) + ((Dst shr 8) and 255)*(255-A) div 255) shl 8) or
-          Min(255, (Src and 255) + (Dst and 255)*(255-A) div 255);
+          (Min(255, ((Src shr 16) and 255) + ((Dst shr 16) and 255) * (255 - A) div 255) shl 16) or
+          (Min(255, ((Src shr 8) and 255) + ((Dst shr 8) and 255) * (255 - A) div 255) shl 8) or
+          Min(255, (Src and 255) + (Dst and 255) * (255 - A) div 255);
       end;
 end;
 
 procedure TWlWindow.ConfigureFrame(const Borderless, Resizable, ToolWindow, SystemMenu, Minimize, Maximize: Boolean);
 begin
-  FBorderless := Borderless; FResizable := Resizable; FToolWindow := ToolWindow;
-  FSystemMenu := SystemMenu; FMinimize := Minimize; FMaximize := Maximize;
+  FBorderless := Borderless;
+  FResizable := Resizable;
+  FToolWindow := ToolWindow;
+  FSystemMenu := SystemMenu;
+  FMinimize := Minimize;
+  FMaximize := Maximize;
   PrepareDecorations;
   ApplySizeHints;
 end;
@@ -1818,10 +2266,14 @@ end;
 function TWlWindow.ButtonVisible(const Part: TWlDecoPart): Boolean;
 begin
   case Part of
-    TWlDecoPart.Close: Result := FSystemMenu;
-    TWlDecoPart.Minimize: Result := FSystemMenu and FMinimize and not FToolWindow and FCanMinimize;
-    TWlDecoPart.Maximize: Result := FSystemMenu and FMaximize and FResizable and not FToolWindow and FCanMaximize;
-  else Result := False;
+    TWlDecoPart.Close:
+      Result := FSystemMenu;
+    TWlDecoPart.Minimize:
+      Result := FSystemMenu and FMinimize and not FToolWindow and FCanMinimize;
+    TWlDecoPart.Maximize:
+      Result := FSystemMenu and FMaximize and FResizable and not FToolWindow and FCanMaximize;
+  else
+    Result := False;
   end;
 end;
 
@@ -1863,8 +2315,10 @@ begin
     end;
   if Buf = nil then
   begin
-    if FDecoBuffers.Count >= 2 then
-      Exit; // both with the compositor: try again later
+    // Both with the compositor: try again later. Under external presentation the presenter's next commit applies the
+    // decorations of a new size with the configure acknowledged: a third buffer then.
+    if (FDecoBuffers.Count >= 3) or ((FDecoBuffers.Count >= 2) and not FExternalPresentation) then
+      Exit;
     Buf := TWlBuffer.Create(FDisplay, BW, BH, WL_SHM_FORMAT_ARGB8888);
     FDecoBuffers.Add(Buf);
   end;
@@ -1897,11 +2351,10 @@ begin
   else
     BtnTop := CDecoBorder;
   Thick := Max(1, Round(1.2 * S));
-  for Part in [TWlDecoPart.Close, TWlDecoPart.Maximize, TWlDecoPart.Minimize] do
+  for I := 0 to DecoButtonCount - 1 do
   begin
-    if not ButtonVisible(Part) then Continue;
-    BtnX := Right - CDecoButtonWidth;
-    Right := BtnX;
+    Part := DecoButtonAt(I);
+    BtnX := Right - (I + 1) * CDecoButtonWidth;
     if FActivated then
       Fg := CDecoIcon
     else
@@ -1956,10 +2409,11 @@ begin
         FillFrame(Frame, CX - R, CY + R - Thick, 2 * R, Thick, Fg);
     end;
   end;
+  Right := Right - DecoButtonCount * CDecoButtonWidth;
   I := Ins.Left + 10;
   if FSystemMenu and (FIconSize > 0) and (Right - I > 24) then
   begin
-    PaintWindowIcon(Frame, I*S, ((BtnTop + Ins.Top - 16) div 2)*S, 16*S);
+    PaintWindowIcon(Frame, I * S, ((BtnTop + Ins.Top - 16) div 2) * S, 16 * S);
     Inc(I, 24);
   end;
   DoDrawTitle(@Frame, Rect(I * S, BtnTop * S, (Right - 8) * S, (Ins.Top - 1) * S),
@@ -1978,7 +2432,6 @@ function TWlWindow.DecoPartAt(const AX, AY: Single): TWlDecoPart;
 var
   Ins: TRect;
   TW, TH, Right: Integer;
-  Part: TWlDecoPart;
   L, R, T, B: Boolean;
 begin
   Result := TWlDecoPart.None;
@@ -2024,18 +2477,39 @@ begin
   if AY < Ins.Top then
   begin
     Right := TW - Ins.Right;
-    for Part in [TWlDecoPart.Close, TWlDecoPart.Maximize, TWlDecoPart.Minimize] do
-      if ButtonVisible(Part) then
-      begin
-        Dec(Right, CDecoButtonWidth);
-        if AX >= Right then Exit(Part);
-      end;
-    Result := TWlDecoPart.Title;
+    if AX >= Right - DecoButtonCount * CDecoButtonWidth then
+      Result := DecoButtonAt(Max(0, Ceil((Right - AX) / CDecoButtonWidth) - 1))
+    else
+      Result := TWlDecoPart.Title;
   end;
 end;
 
-procedure TWlWindow.DecoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState: Integer;
-  const ASerial: UInt32);
+function TWlWindow.DecoButtonCount: Integer;
+begin
+  Result := Ord(ButtonVisible(TWlDecoPart.Close)) + Ord(ButtonVisible(TWlDecoPart.Maximize)) +
+    Ord(ButtonVisible(TWlDecoPart.Minimize));
+end;
+
+function TWlWindow.DecoButtonAt(const AIndex: Integer): TWlDecoPart;
+const
+  COrder: array[0..2] of TWlDecoPart = (TWlDecoPart.Close, TWlDecoPart.Maximize, TWlDecoPart.Minimize);
+var
+  N: Integer;
+  P: TWlDecoPart;
+begin
+  // From the right: close, maximize, minimize, as allowed by the window and the compositor.
+  N := 0;
+  for P in COrder do
+    if ButtonVisible(P) then
+    begin
+      if N = AIndex then
+        Exit(P);
+      Inc(N);
+    end;
+  Result := TWlDecoPart.Title;
+end;
+
+procedure TWlWindow.DecoPointer(const AEvent: TWlPointerEvent; const AX, AY: Single; const AState: Integer; const ASerial: UInt32);
 const
   CEdges: array[TWlDecoPart] of UInt32 = (0, 0, 0, 0, 0, XDG_TOPLEVEL_RESIZE_EDGE_LEFT,
     XDG_TOPLEVEL_RESIZE_EDGE_RIGHT, XDG_TOPLEVEL_RESIZE_EDGE_TOP, XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM,
@@ -2043,7 +2517,7 @@ const
     XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT);
   CCursors: array[TWlDecoPart] of Integer = (crDefault, crDefault, crDefault, crDefault, crDefault, crSizeWE,
     crSizeWE, crSizeNS, crSizeNS, crSizeNWSE, crSizeNESW, crSizeNESW, crSizeNWSE);
-  CButtons = [TWlDecoPart.Minimize, TWlDecoPart.Maximize, TWlDecoPart.Close];
+  CButtons =[ TWlDecoPart.Minimize,  TWlDecoPart.Maximize,  TWlDecoPart.Close];
 var
   Part: TWlDecoPart;
   Now: Int64;
@@ -2083,7 +2557,7 @@ begin
         else if Part = TWlDecoPart.Title then
         begin
           Now := MonotonicMs;
-          if Now - FDecoLastClick <= CDoubleClickMs then
+          if (Now - FDecoLastClick <= CDoubleClickMs) and ButtonVisible(TWlDecoPart.Maximize) then
           begin
             FDecoLastClick := 0;
             DecoAction(TWlDecoPart.Maximize);
@@ -2091,7 +2565,9 @@ begin
           else
           begin
             FDecoLastClick := Now;
-            xdg_toplevel_move(FToplevel, FDisplay.FSeat, ASerial);
+            // The move starts when the pointer is dragged (TWlDisplay.StartMove): a click stays a click.
+            FDisplay.FMoveWindow := Self;
+            FDisplay.FMoveFrom := PointF(AX, AY);
           end;
         end
         else if Part in CButtons then
@@ -2103,8 +2579,9 @@ begin
           xdg_toplevel_resize(FToplevel, FDisplay.FSeat, ASerial, CEdges[Part]);
       end
       else if (AState = WL_STATE_RIGHT) and (Part = TWlDecoPart.Title) and FSystemMenu and FCanMenu then
-        xdg_toplevel_show_window_menu(FToplevel, FDisplay.FSeat, ASerial,
-          Round(AX) - DecorationInsets.Left, Round(AY) - DecorationInsets.Top);
+        // In the coordinates of the window's surface (the decorations' starts at the window geometry's origin).
+        xdg_toplevel_show_window_menu(FToplevel, FDisplay.FSeat, ASerial, Round(AX) + FGeometryX,
+          Round(AY) + FGeometryY);
     TWlPointerEvent.Up:
       if (AState = WL_STATE_LEFT) and (FDecoPressed <> TWlDecoPart.None) then
       begin
@@ -2120,7 +2597,8 @@ end;
 
 procedure TWlWindow.DecoAction(const APart: TWlDecoPart);
 begin
-  if not ButtonVisible(APart) then Exit;
+  if not ButtonVisible(APart) then
+    Exit;
   case APart of
     TWlDecoPart.Close:
       DoCloseRequest;
@@ -2130,16 +2608,11 @@ begin
       else
         xdg_toplevel_set_maximized(FToplevel);
     TWlDecoPart.Minimize:
-      begin
-        xdg_toplevel_set_minimized(FToplevel);
-        FState := TWlWindowState.Minimized;
-        DoStateChanged(FState);
-      end;
+      Minimize;
   end;
 end;
 
-procedure TWlWindow.DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string;
-  const AActive: Boolean);
+procedure TWlWindow.DoDrawTitle(const AFrame: PWlFrame; const ARect: TRect; const ATitle: string; const AActive: Boolean);
 begin
 end;
 
@@ -2157,6 +2630,8 @@ begin
   PIns := FParent.DecorationInsets;
   RelX := Round(FOrigin.X - FParent.FOrigin.X) + PIns.Left;
   RelY := Round(FOrigin.Y - FParent.FOrigin.Y) + PIns.Top;
+  FPopupAskX := RelX;
+  FPopupAskY := RelY;
   // The anchor point stays inside the parent; the rest of the distance is an offset.
   AX := EnsureRange(RelX, 0, Max(0, FParent.FWidth + PIns.Left + PIns.Right - 1));
   AY := EnsureRange(RelY, 0, Max(0, FParent.FHeight + PIns.Top + PIns.Bottom - 1));
@@ -2175,6 +2650,7 @@ end;
 
 procedure TWlWindow.DestroyRole;
 begin
+  DestroyExport;
   if FPopup <> nil then
   begin
     xdg_popup_destroy(FPopup);
@@ -2211,8 +2687,11 @@ end;
 
 procedure TWlWindow.Activate;
 begin
-  if (FDisplay.FActivation = nil) or (FToplevel = nil) or not FVisible or (FActivationToken <> nil) then
+  // Not when the compositor says the window is active already: FMX asks again for the window it is told about.
+  if (FDisplay.FActivation = nil) or (FToplevel = nil) or not FVisible or (FActivationToken <> nil) or
+    FActivated then
     Exit;
+  WlLog(TWlLogLevel.Debug, 'activation token for "%s" (serial %d)', [FTitle, FDisplay.FLastInputSerial]);
   FActivationToken := xdg_activation_v1_get_activation_token(FDisplay.FActivation);
   xdg_activation_token_v1_add_listener(FActivationToken, @CActivationTokenListener, Self);
   if (FDisplay.FSeat <> nil) and (FDisplay.FLastInputSerial <> 0) then
@@ -2223,16 +2702,76 @@ begin
   FDisplay.Flush;
 end;
 
+function TWlWindow.ExportToplevel: string;
+var
+  Started: Int64;
+begin
+  Result := '';
+  if (FDisplay = nil) or (FDisplay.FExporter = nil) or (FToplevel = nil) or not FVisible then
+    Exit;
+  Started := MonotonicMs;
+  if FExported = nil then
+  begin
+    FExportHandle := '';
+    FExported := zxdg_exporter_v2_export_toplevel(FDisplay.FExporter, FSurface);
+    zxdg_exported_v2_add_listener(FExported, @CExportedListener, Self);
+    // The compositor sends the handle right away: one roundtrip (it dispatches only Wayland events, no timers).
+    wl_display_roundtrip(FDisplay.FDisplay);
+    FDisplay.CheckConnection;
+  end;
+  if (FExported = nil) or (FExportHandle = '') then
+  begin
+    WlLog(TWlLogLevel.Warning, 'xdg-foreign: no handle for "%s"', [FTitle]);
+    DestroyExport;
+    Exit;
+  end;
+  Inc(FExportCount);
+  WlLog(TWlLogLevel.Debug, 'exported "%s" as %s (%d ms)', [FTitle, FExportHandle, MonotonicMs - Started]);
+  Result := FExportHandle;
+end;
+
+procedure TWlWindow.UnexportToplevel;
+begin
+  if FExportCount > 0 then
+    Dec(FExportCount);
+  if FExportCount = 0 then
+    DestroyExport;
+end;
+
+procedure TWlWindow.DestroyExport;
+begin
+  FExportCount := 0;
+  FExportHandle := '';
+  if FExported <> nil then
+  begin
+    zxdg_exported_v2_destroy(FExported);
+    FExported := nil;
+    if FDisplay <> nil then
+      FDisplay.Flush;
+  end;
+end;
+
 procedure TWlWindow.Show;
 var
   UsePopup: Boolean;
 begin
   if FVisible then
     Exit;
-  UsePopup := (FKind = TWlWindowKind.Popup) and (FParent <> nil) and FParent.FVisible and
-    (FParent.FXdgSurface <> nil);
+  UsePopup := (FKind = TWlWindowKind.Popup) and (FParent <> nil);
   if (FKind = TWlWindowKind.Popup) and not UsePopup then
-    WlLog(TWlLogLevel.Debug, 'popup without a visible parent: shown as a toplevel', []);
+    WlLog(TWlLogLevel.Debug, 'popup without a parent: shown as a toplevel', []);
+  if UsePopup and not FParent.CanParentPopups then
+  begin
+    // xdg-shell: the parent of an xdg_popup must be mapped before the popup (configured and its first frame
+    // committed). The popup waits for it (ParentMapped), at the same place relative to it.
+    WlLog(TWlLogLevel.Debug, 'popup waits until its parent "%s" is mapped', [FParent.FTitle]);
+    FPopupPending := True;
+    FPendingOffset := FOrigin - FParent.FOrigin;
+    FVisible := True;
+    FConfigured := False;
+    FMapped := False;
+    Exit;
+  end;
   if UsePopup then
     CreatePopupRole
   else
@@ -2260,6 +2799,7 @@ begin
       xdg_toplevel_set_minimized(FToplevel);
   end;
   FVisible := True;
+  FShownOnce := True;
   FConfigured := False;
   FMapped := False;
   FFullDamage := True;
@@ -2276,8 +2816,35 @@ var
 begin
   Ws := FDisplay.FWindows.ToArray;
   for I := High(Ws) downto 0 do
-    if (Ws[I].FParent = Self) and Ws[I].FVisible and (Ws[I].FPopup <> nil) then
+    if (Ws[I].FParent = Self) and Ws[I].FVisible and ((Ws[I].FPopup <> nil) or Ws[I].FPopupPending) then
       Ws[I].Hide;
+end;
+
+function TWlWindow.CanParentPopups: Boolean;
+begin
+  // Mapped: configured and a frame committed (by an external presenter: once the first paint has returned).
+  Result := FVisible and (FXdgSurface <> nil) and FMapped;
+end;
+
+procedure TWlWindow.ParentMapped;
+var
+  W: TWlWindow;
+begin
+  for W in FDisplay.FWindows.ToArray do
+    if (W.FParent = Self) and W.FVisible and FDisplay.FWindows.Contains(W) then
+    begin
+      if W.FPopupPending then
+      begin
+        W.FPopupPending := False;
+        W.FVisible := False;
+        W.FOrigin := FOrigin + W.FPendingOffset;
+        WlLog(TWlLogLevel.Debug, 'parent "%s" mapped: the popup is made now', [FTitle]);
+        W.Show;
+      end
+      else if W.FToplevel <> nil then
+        // A parent that was not mapped counts as none (xdg_toplevel.set_parent): again now.
+        W.SetTransientParent;
+    end;
 end;
 
 procedure TWlWindow.Hide;
@@ -2285,6 +2852,13 @@ begin
   if not FVisible then
     Exit;
   HideChildPopups;
+  if FPopupPending then
+  begin
+    // Never made: nothing to unmap.
+    FPopupPending := False;
+    FVisible := False;
+    Exit;
+  end;
   FVisible := False;
   FConfigured := False;
   FMapped := False;
@@ -2301,24 +2875,33 @@ begin
     xdg_surface_destroy(FXdgSurface);
     FXdgSurface := nil;
   end;
-  // Unmaps: a toplevel keeps its role objects and must do the initial commit again when shown.
   wl_surface_attach(FSurface, nil, 0, 0);
   wl_surface_commit(FSurface);
+  // A toplevel's role objects go too (as GTK does), and Show makes new ones: xdg-shell has the unmapped toplevel do
+  // the initial commit again and wait for a configure, but Weston 14 sends none for it (a form hidden and shown
+  // again stayed invisible: no paint without a configure).
+  if FToplevel <> nil then
+    DestroyRole;
   FDisplay.Flush;
 end;
 
 procedure TWlWindow.HandleXdgConfigure(const ASerial: UInt32);
 var
-  WasConfigured, SizeChanged, StateChanged: Boolean;
+  WasConfigured, SizeChanged, StateChanged, DecoSwitched, FrameChanged, ActivationChanged, external: Boolean;
   W, H: Integer;
   NewState: TWlWindowState;
   Ins: TRect;
 begin
-  xdg_surface_ack_configure(FXdgSurface, ASerial);
+  // An external presenter commits from its own thread at any time, maybe a frame painted before this configure; the
+  // compositor checks a maximized or fullscreen toplevel's geometry against the size of the configure acknowledged
+  // last (Weston: invalid_surface_state). Its acknowledgement goes right next to the state of the new size, below.
+  external := FExternalPresentation and FVisible and (FToplevel <> nil);
+  if not external then
+    xdg_surface_ack_configure(FXdgSurface, ASerial);
   if FToplevel <> nil then
     WlLog(TWlLogLevel.Debug, 'configure "%s": %dx%d maximized %s fullscreen %s activated %s (now %dx%d)', [FTitle,
-      FPendingWidth, FPendingHeight, BoolToStr(FPendingMaximized, True), BoolToStr(FPendingFullScreen, True),
-      BoolToStr(FPendingActivated, True), FWidth, FHeight]);
+        FPendingWidth, FPendingHeight, BoolToStr(FPendingMaximized, True), BoolToStr(FPendingFullScreen, True),
+        BoolToStr(FPendingActivated, True), FWidth, FHeight]);
   WasConfigured := FConfigured;
   FConfigured := True;
   SizeChanged := False;
@@ -2359,8 +2942,10 @@ begin
       FFullDamage := True;
     end;
     if (FFullScreen <> FPendingFullScreen) or (NewState <> FState) or (FPendingActivated <> FActivated) or
-      SizeChanged then
+      SizeChanged or FDecoSwitched then
       FDecoDirty := True;
+    DecoSwitched := FDecoSwitched;
+    FDecoSwitched := False;
     FFullScreen := FPendingFullScreen;
     if FState = TWlWindowState.Minimized then
     begin
@@ -2372,17 +2957,41 @@ begin
     else
       StateChanged := NewState <> FState;
     FState := NewState;
+    FrameChanged := (FPendingStateBits <> FStateBits) or FCapabilitiesChanged;
+    FStateBits := FPendingStateBits;
+    FCapabilitiesChanged := False;
+    ActivationChanged := FPendingActivated <> FActivated;
+    FActivated := FPendingActivated;
+    if external then
+    begin
+      // Every commit of the presenter must be valid for the configure acknowledged before it: into a maximized or
+      // fullscreen state the geometry, viewport and decorations of the new size go first (until the acknowledgement
+      // the window is not checked), out of it the acknowledgement goes first; both before FMX hears of the change.
+      if FPendingMaximized or FPendingFullScreen then
+      begin
+        ApplySurfaceState;
+        xdg_surface_ack_configure(FXdgSurface, ASerial);
+      end
+      else
+      begin
+        xdg_surface_ack_configure(FXdgSurface, ASerial);
+        ApplySurfaceState;
+      end;
+      FDisplay.Flush;
+    end;
     // The state first: FMX's OnResize of a maximized form sees wsMaximized.
     if StateChanged then
       DoStateChanged(FState);
-    if SizeChanged or (FCsd and StateChanged) then
+    if SizeChanged or (FCsd and StateChanged) or DecoSwitched then
       DoResized;
-    if FPendingActivated <> FActivated then
-    begin
-      FActivated := FPendingActivated;
+    if ActivationChanged then
       DoActivate(FActivated);
-    end;
-  end;
+    if FrameChanged then
+      DoFrameChanged;
+  end
+  else if FExternalPresentation and FVisible then
+    // A popup presented by someone else: its viewport's destination.
+    ApplySurfaceState;
   if not WasConfigured or SizeChanged then
     InvalidateAll;
 end;
@@ -2439,38 +3048,37 @@ begin
   end;
   BW := BufferWidth;
   BH := BufferHeight;
-  Buf := nil;
-  if not FExternalPresentation then
-  begin
-    Buf := AcquireBuffer(BW, BH);
-    if Buf = nil then
-      Exit; // all buffers are with the compositor: paint when one comes back
-  end;
   Dirty := FDirty;
-  FDirty := TRectF.Empty;
   FillChar(Frame, SizeOf(Frame), 0);
-  if Buf <> nil then
-  begin
-    Frame.Bits := Buf.Data;
-    Frame.Stride := Buf.Stride;
-  end;
   Frame.Width := BW;
   Frame.Height := BH;
   Frame.Scale := FScale;
+  if FExternalPresentation then
+  begin
+    // The presenter commits from its own thread while FMX paints, or later: the window's state for this size goes
+    // first (the next commit applies it, whichever frame it carries), and the frame has no pixels here.
+    FDirty := TRectF.Empty;
+    ApplySurfaceState;
+    DoPaint(@Frame, Dirty);
+    if FVisible and not FMapped then
+    begin
+      // The presenter has committed the first frame by now (FastCanvas waits for it before FMX's paint returns).
+      FMapped := True;
+      ParentMapped;
+    end;
+    Exit;
+  end;
+  Buf := AcquireBuffer(BW, BH);
+  if Buf = nil then
+    Exit; // all buffers are with the compositor: paint when one comes back
+  FDirty := TRectF.Empty;
+  Frame.Bits := Buf.Data;
+  Frame.Stride := Buf.Stride;
   DoPaint(@Frame, Dirty);
   if not FVisible then
     Exit;
-  // The scale state is double-buffered: with an external presenter it applies at its next commit.
-  if FViewport <> nil then
-    wp_viewport_set_destination(FViewport, FWidth, FHeight)
-  else if (FIntScale <> FLastBufferScale) and (wl_surface_get_version(FSurface) >= 3) then
-  begin
-    wl_surface_set_buffer_scale(FSurface, FIntScale);
-    FLastBufferScale := FIntScale;
-  end;
-  UpdateGeometry;
-  PaintDecorations;
-  if (Buf = nil) or not Frame.Drawn then
+  ApplySurfaceState;
+  if not Frame.Drawn then
     Exit;
   wl_surface_attach(FSurface, Buf.Buffer, 0, 0);
   if FFullDamage then
@@ -2502,8 +3110,12 @@ begin
   end;
   wl_surface_commit(FSurface);
   Buf.Busy := True;
-  FMapped := True;
   FFullDamage := False;
+  if not FMapped then
+  begin
+    FMapped := True;
+    ParentMapped;
+  end;
 end;
 
 procedure TWlWindow.Invalidate(const ARect: TRectF);
@@ -2522,6 +3134,41 @@ end;
 procedure TWlWindow.InvalidateAll;
 begin
   FDirty := RectF(0, 0, FWidth, FHeight);
+end;
+
+procedure TWlWindow.SetExternalPresentation(const AValue: Boolean);
+begin
+  if AValue = FExternalPresentation then
+    Exit;
+  FExternalPresentation := AValue;
+  WlLog(TWlLogLevel.Debug, 'external presentation of "%s": %s', [FTitle, BoolToStr(AValue, True)]);
+  // A viewport maps any buffer to the window's logical size: the presenter's buffers need not match the buffer
+  // scale (an odd size at scale 2 would be a protocol error) nor the size of the configure.
+  if AValue and (FViewport = nil) and (FDisplay.FViewporter <> nil) then
+    FViewport := wp_viewporter_get_viewport(FDisplay.FViewporter, FSurface);
+  // The next paint is the new presenter's (or FMXWayland's again), all of it.
+  FFullDamage := True;
+  InvalidateAll;
+end;
+
+procedure TWlWindow.ApplySurfaceState;
+begin
+  if FViewport <> nil then
+  begin
+    if (FLastBufferScale <> 1) and (wl_surface_get_version(FSurface) >= 3) then
+    begin
+      wl_surface_set_buffer_scale(FSurface, 1);
+      FLastBufferScale := 1;
+    end;
+    wp_viewport_set_destination(FViewport, FWidth, FHeight);
+  end
+  else if (FIntScale <> FLastBufferScale) and (wl_surface_get_version(FSurface) >= 3) then
+  begin
+    wl_surface_set_buffer_scale(FSurface, FIntScale);
+    FLastBufferScale := FIntScale;
+  end;
+  UpdateGeometry;
+  PaintDecorations;
 end;
 
 procedure TWlWindow.SetBounds(const AX, AY: Single; const AWidth, AHeight: Integer);
@@ -2588,7 +3235,8 @@ end;
 procedure TWlWindow.SetState(const AState: TWlWindowState);
 begin
   if ((AState = TWlWindowState.Maximized) and not FCanMaximize) or
-    ((AState = TWlWindowState.Minimized) and not FCanMinimize) then Exit;
+    ((AState = TWlWindowState.Minimized) and not FCanMinimize) then
+    Exit;
   if (FToplevel = nil) or not FVisible then
   begin
     FState := AState;
@@ -2596,12 +3244,12 @@ begin
   end;
   case AState of
     TWlWindowState.Normal:
-    begin
-      if FState = TWlWindowState.Maximized then
-        xdg_toplevel_unset_maximized(FToplevel)
-      else if FState = TWlWindowState.Minimized then
-        Activate;
-    end;
+      begin
+        if FState = TWlWindowState.Maximized then
+          xdg_toplevel_unset_maximized(FToplevel)
+        else if FState = TWlWindowState.Minimized then
+          Activate;
+      end;
     TWlWindowState.Maximized:
       if FState <> TWlWindowState.Maximized then
         xdg_toplevel_set_maximized(FToplevel);
@@ -2616,7 +3264,8 @@ end;
 
 procedure TWlWindow.SetFullScreen(const AValue: Boolean);
 begin
-  if AValue and not FCanFullscreen then Exit;
+  if AValue and not FCanFullscreen then
+    Exit;
   if (FToplevel = nil) or not FVisible then
   begin
     FFullScreen := AValue;
@@ -2636,46 +3285,68 @@ end;
 
 procedure TWlWindow.SetSizeConstraints(const MinWidth, MinHeight, MaxWidth, MaxHeight: Integer);
 begin
-  FMinWidth := Max(0, MinWidth); FMinHeight := Max(0, MinHeight);
-  FMaxWidth := Max(0, MaxWidth); FMaxHeight := Max(0, MaxHeight);
-  if FMaxWidth > 0 then FMaxWidth := Max(FMinWidth, FMaxWidth);
-  if FMaxHeight > 0 then FMaxHeight := Max(FMinHeight, FMaxHeight);
+  FMinWidth := Max(0, MinWidth);
+  FMinHeight := Max(0, MinHeight);
+  FMaxWidth := Max(0, MaxWidth);
+  FMaxHeight := Max(0, MaxHeight);
+  if FMaxWidth > 0 then
+    FMaxWidth := Max(FMinWidth, FMaxWidth);
+  if FMaxHeight > 0 then
+    FMaxHeight := Max(FMinHeight, FMaxHeight);
   ApplySizeHints;
   InvalidateAll;
 end;
 
 procedure TWlWindow.ApplySizeHints;
-var Ins: TRect; MinW, MinH, MaxW, MaxH: Integer;
+var
+  Ins: TRect;
+  MinW, MinH, MaxW, MaxH: Integer;
 begin
-  if FToplevel = nil then Exit;
+  if FToplevel = nil then
+    Exit;
   Ins := InsetsFor(TWlWindowState.Normal, False);
-  MinW := FMinWidth; MinH := FMinHeight; MaxW := FMaxWidth; MaxH := FMaxHeight;
+  MinW := FMinWidth;
+  MinH := FMinHeight;
+  MaxW := FMaxWidth;
+  MaxH := FMaxHeight;
   if not FResizable then
   begin
-    MinW := FWidth; MinH := FHeight; MaxW := FWidth; MaxH := FHeight;
+    MinW := FWidth;
+    MinH := FHeight;
+    MaxW := FWidth;
+    MaxH := FHeight;
   end;
   // Zero means unconstrained, including when CSD has nonzero insets.
-  if MinW > 0 then Inc(MinW, Ins.Left + Ins.Right);
-  if MinH > 0 then Inc(MinH, Ins.Top + Ins.Bottom);
-  if MaxW > 0 then Inc(MaxW, Ins.Left + Ins.Right);
-  if MaxH > 0 then Inc(MaxH, Ins.Top + Ins.Bottom);
+  if MinW > 0 then
+    Inc(MinW, Ins.Left + Ins.Right);
+  if MinH > 0 then
+    Inc(MinH, Ins.Top + Ins.Bottom);
+  if MaxW > 0 then
+    Inc(MaxW, Ins.Left + Ins.Right);
+  if MaxH > 0 then
+    Inc(MaxH, Ins.Top + Ins.Bottom);
   xdg_toplevel_set_min_size(FToplevel, MinW, MinH);
   xdg_toplevel_set_max_size(FToplevel, MaxW, MaxH);
 end;
 
 procedure TWlWindow.SetIcon(const Pixels: TArray<Cardinal>; const Size: Integer);
 begin
-  if (Size < 0) or (Size > 1024) or (Length(Pixels) <> Size * Size) then Exit;
-  FIconPixels := Copy(Pixels); FIconSize := Size;
+  if (Size < 0) or (Size > 1024) or (Length(Pixels) <> Size * Size) then
+    Exit;
+  FIconPixels := Copy(Pixels);
+  FIconSize := Size;
   ApplyIcon;
   FDecoDirty := True;
   InvalidateAll;
 end;
 
 procedure TWlWindow.ApplyIcon;
-var Icon: Pxdg_toplevel_icon_v1; Buffer: TWlBuffer;
+var
+  Icon: Pxdg_toplevel_icon_v1;
+  Buffer: TWlBuffer;
 begin
-  if (FToplevel = nil) or (FDisplay.FIconManager = nil) then Exit;
+  if (FToplevel = nil) or (FDisplay.FIconManager = nil) then
+    Exit;
   if FIconSize = 0 then
     xdg_toplevel_icon_manager_v1_set_icon(FDisplay.FIconManager, FToplevel, nil)
   else
@@ -2688,7 +3359,9 @@ begin
       xdg_toplevel_icon_manager_v1_set_icon(FDisplay.FIconManager, FToplevel, Icon);
       // Immutable icon is destroyed before its backing buffer; release events are unused.
       xdg_toplevel_icon_v1_destroy(Icon);
-    finally Buffer.Free; end;
+    finally
+      Buffer.Free;
+    end;
   end;
 end;
 
@@ -2727,6 +3400,7 @@ begin
   FOutputs := TObjectList<TWlOutput>.Create(True);
   FWindows := TList<TWlWindow>.Create;
   FTimers := TObjectDictionary<NativeInt, TWlTimer>.Create([doOwnsValues]);
+  FFdWatches := TObjectDictionary<NativeInt, TWlFdWatch>.Create([doOwnsValues]);
   FOffers := TObjectDictionary<Pwl_data_offer, TWlDataOffer>.Create([doOwnsValues]);
   FDataWrites := TObjectList<TWlDataWrite>.Create(True);
   FDragReadFd := -1;
@@ -2748,9 +3422,12 @@ begin
   GDisconnected := True;
   StopKeyRepeat;
   FreeAndNil(FTextInput);
-  if FTextInputManager <> nil then zwp_text_input_manager_v3_destroy(FTextInputManager);
+  if FTextInputManager <> nil then
+    zwp_text_input_manager_v3_destroy(FTextInputManager);
   FTextInputManager := nil;
-  FTextState := nil; FTextApply := nil; FTextCancel := nil;
+  FTextState := nil;
+  FTextApply := nil;
+  FTextCancel := nil;
   FTimers.Clear;
   CloseFd(FDragReadFd);
   FDragEnd := nil;
@@ -2764,7 +3441,8 @@ begin
     ClearDragIcon;
     if FOwnSource <> nil then
       wl_data_source_destroy(FOwnSource);
-    if FDragSource <> nil then wl_data_source_destroy(FDragSource);
+    if FDragSource <> nil then
+      wl_data_source_destroy(FDragSource);
     for var O in FOffers.Values do
       wl_data_offer_destroy(O.FOffer);
     FOffers.Clear;
@@ -2795,6 +3473,7 @@ begin
     xkb_context_unref(FXkbContext);
   CloseFd(FWakeFd);
   FOffers.Free;
+  FFdWatches.Free;
   FTimers.Free;
   FWindows.Free;
   FOutputs.Free;
@@ -2813,17 +3492,14 @@ begin
     WlLog(TWlLogLevel.Error, '%s: no keyboard input', [Err]);
   FDisplay := wl_display_connect(nil);
   if FDisplay = nil then
-    raise Exception.CreateFmt('FMXWayland: cannot connect to a Wayland compositor (WAYLAND_DISPLAY="%s", ' +
-      'XDG_RUNTIME_DIR="%s"). FMXWayland needs a Wayland session.',
-      [GetEnvironmentVariable('WAYLAND_DISPLAY'), GetEnvironmentVariable('XDG_RUNTIME_DIR')]);
+    raise Exception.CreateFmt('FMXWayland: cannot connect to a Wayland compositor (WAYLAND_DISPLAY="%s", ' + 'XDG_RUNTIME_DIR="%s"). FMXWayland needs a Wayland session.', [GetEnvironmentVariable('WAYLAND_DISPLAY'), GetEnvironmentVariable('XDG_RUNTIME_DIR')]);
   FWakeFd := eventfd(0, EFD_CLOEXEC or EFD_NONBLOCK);
   IgnoreSigPipe;
   FRegistry := wl_display_get_registry(FDisplay);
   wl_registry_add_listener(FRegistry, @CRegistryListener, Self);
   wl_display_roundtrip(FDisplay);
   if (FCompositor = nil) or (FShm = nil) or (FWmBase = nil) then
-    raise Exception.Create('FMXWayland: the compositor lacks wl_compositor, wl_shm or xdg_wm_base (globals: ' +
-      GlobalsText + ')');
+    raise Exception.Create('FMXWayland: the compositor lacks wl_compositor, wl_shm or xdg_wm_base (globals: ' + GlobalsText + ')');
   // Output modes and scales, seat capabilities, then the keymap of the keyboard created on the way.
   wl_display_roundtrip(FDisplay);
   wl_display_roundtrip(FDisplay);
@@ -2838,32 +3514,43 @@ end;
 
 procedure TWlDisplay.CreateTextInput;
 begin
-  if (FTextInput <> nil) or (FTextInputManager = nil) or (FSeat = nil) then Exit;
+  if (FTextInput <> nil) or (FTextInputManager = nil) or (FSeat = nil) then
+    Exit;
   FTextInput := TWaylandTextInput.Create(FTextInputManager, FSeat);
   if FTextInputWindow <> nil then
     FTextInput.SetTarget(FTextInputWindow.Surface, FTextState, FTextApply, FTextCancel);
 end;
 
 function TWlDisplay.HasTextInput: Boolean;
-begin Result := FTextInput <> nil; end;
+begin
+  Result := FTextInput <> nil;
+end;
 
-procedure TWlDisplay.BeginTextInput(Window: TWlWindow; const State: TFunc<TWaylandTextState>;
-  const Apply: TProc<TWaylandTextBatch>; const Cancel: TProc);
+procedure TWlDisplay.BeginTextInput(Window: TWlWindow; const State: TFunc<TWaylandTextState>; const Apply: TProc<TWaylandTextBatch>; const Cancel: TProc);
 begin
   FTextInputWindow := Window;
-  FTextState := State; FTextApply := Apply; FTextCancel := Cancel;
-  if FTextInput <> nil then FTextInput.SetTarget(Window.Surface, State, Apply, Cancel)
-  else WlLogOnce('text-input-v3', 'the compositor has no text-input-v3; keyboard/compose input remains available');
-  if FComposeState <> nil then xkb_compose_state_reset(FComposeState);
+  FTextState := State;
+  FTextApply := Apply;
+  FTextCancel := Cancel;
+  if FTextInput <> nil then
+    FTextInput.SetTarget(Window.Surface, State, Apply, Cancel)
+  else
+    WlLogOnce('text-input-v3', 'the compositor has no text-input-v3; keyboard/compose input remains available');
+  if FComposeState <> nil then
+    xkb_compose_state_reset(FComposeState);
   Flush;
 end;
 
 procedure TWlDisplay.EndTextInput(Window: TWlWindow; Notify: Boolean);
 begin
-  if FTextInputWindow <> Window then Exit;
+  if FTextInputWindow <> Window then
+    Exit;
   FTextInputWindow := nil;
-  FTextState := nil; FTextApply := nil; FTextCancel := nil;
-  if FTextInput <> nil then FTextInput.ClearTarget(Notify);
+  FTextState := nil;
+  FTextApply := nil;
+  FTextCancel := nil;
+  if FTextInput <> nil then
+    FTextInput.ClearTarget(Notify);
   Flush;
 end;
 
@@ -2920,7 +3607,9 @@ begin
   else if AInterface = 'zxdg_decoration_manager_v1' then
     FDecorationManager := wl_registry_bind(FRegistry, AName, @zxdg_decoration_manager_v1_interface, 1)
   else if AInterface = 'xdg_activation_v1' then
-    FActivation := wl_registry_bind(FRegistry, AName, @xdg_activation_v1_interface, 1);
+    FActivation := wl_registry_bind(FRegistry, AName, @xdg_activation_v1_interface, 1)
+  else if AInterface = 'zxdg_exporter_v2' then
+    FExporter := wl_registry_bind(FRegistry, AName, @zxdg_exporter_v2_interface, 1);
   if (AInterface = 'zwp_text_input_manager_v3') and (FTextInputManager = nil) then
   begin
     FTextInputManagerName := AName;
@@ -2942,25 +3631,36 @@ var
 begin
   if AName = FTextInputManagerName then
   begin
-    if FTextInput <> nil then FTextInput.ClearTarget;
+    if FTextInput <> nil then
+      FTextInput.ClearTarget;
     FreeAndNil(FTextInput);
-    if FTextInputManager <> nil then zwp_text_input_manager_v3_destroy(FTextInputManager);
-    FTextInputManager := nil; FTextInputManagerName := 0;
+    if FTextInputManager <> nil then
+      zwp_text_input_manager_v3_destroy(FTextInputManager);
+    FTextInputManager := nil;
+    FTextInputManagerName := 0;
   end;
   if (FSeat <> nil) and (AName = FSeatName) then
   begin
-    ClearDragOffer(True); CancelDrag;
-    if FTextInput <> nil then FTextInput.ClearTarget;
+    ClearDragOffer(True);
+    CancelDrag;
+    if FTextInput <> nil then
+      FTextInput.ClearTarget;
     FreeAndNil(FTextInput);
     HandleCapabilities(0);
     if FDataDevice <> nil then
     begin
       if wl_data_device_get_version(FDataDevice) >= WL_DATA_DEVICE_RELEASE_SINCE_VERSION then
-        wl_data_device_release(FDataDevice) else wl_data_device_destroy(FDataDevice);
+        wl_data_device_release(FDataDevice)
+      else
+        wl_data_device_destroy(FDataDevice);
       FDataDevice := nil;
     end;
-    if FSeatVersion >= WL_SEAT_RELEASE_SINCE_VERSION then wl_seat_release(FSeat) else wl_seat_destroy(FSeat);
-    FSeat := nil; FSeatName := 0;
+    if FSeatVersion >= WL_SEAT_RELEASE_SINCE_VERSION then
+      wl_seat_release(FSeat)
+    else
+      wl_seat_destroy(FSeat);
+    FSeat := nil;
+    FSeatName := 0;
   end;
   for I := FOutputs.Count - 1 downto 0 do
     if FOutputs[I].FGlobalName = AName then
@@ -2995,7 +3695,9 @@ begin
       wl_pointer_destroy(FPointer);
     FPointer := nil;
     FPointerWindow := nil;
-    FDragPressWindow := nil; FDragPressSerial := 0; FButtons := 0;
+    FDragPressWindow := nil;
+    FDragPressSerial := 0;
+    FButtons := 0;
     CancelDrag;
   end;
   if HasKeyboard and (FKeyboard = nil) then
@@ -3096,6 +3798,27 @@ begin
     FTimers.Remove(AId);
 end;
 
+function TWlDisplay.AddFdWatch(const AFd: Integer; const AEvents: Int16; const AProc: TProc): NativeInt;
+var
+  W: TWlFdWatch;
+begin
+  Inc(FNextFdWatchId);
+  W := TWlFdWatch.Create;
+  W.FId := FNextFdWatchId;
+  W.FFd := AFd;
+  W.FEvents := AEvents;
+  W.FProc := AProc;
+  FFdWatches.Add(W.FId, W);
+  Result := W.FId;
+end;
+
+function TWlDisplay.RemoveFdWatch(const AId: NativeInt): Boolean;
+begin
+  Result := FFdWatches.ContainsKey(AId);
+  if Result then
+    FFdWatches.Remove(AId);
+end;
+
 function TWlDisplay.NextTimerDue: Int64;
 var
   T: TWlTimer;
@@ -3165,8 +3888,11 @@ end;
 
 function TWlDisplay.ProcessEvents(const ATimeoutMs: Integer): Boolean;
 var
-  Fds: array[0..1] of TPollFd;
-  Timeout, N: Integer;
+  Fds: array of TPollFd;
+  WatchIds: TArray<NativeInt>;
+  Watch: TWlFdWatch;
+  Proc: TProc;
+  Timeout, N, I: Integer;
   Due, Now: Int64;
   Readable: Boolean;
 begin
@@ -3179,7 +3905,8 @@ begin
     Result := True;
   if PaintWindows then
     Result := True;
-  if PumpDataTransfers then Result := True;
+  if PumpDataTransfers then
+    Result := True;
   Timeout := ATimeoutMs;
   if Result or FTerminated then
     Timeout := 0;
@@ -3196,20 +3923,31 @@ begin
     Exit;
   end;
   Due := NextTimerDue;
-  if ((FDragReadFd >= 0) or (FDataWrites.Count > 0)) and ((Timeout < 0) or (Timeout > 10)) then Timeout := 10;
+  if ((FDragReadFd >= 0) or (FDataWrites.Count > 0)) and ((Timeout < 0) or (Timeout > 10)) then
+    Timeout := 10;
   if Due >= 0 then
   begin
     Now := MonotonicMs;
     if (Timeout < 0) or (Due - Now < Timeout) then
       Timeout := Max(0, Integer(Min(Due - Now, Int64(MaxInt))));
   end;
-  Fds[0].fd := wl_display_get_fd(FDisplay);
+  // The display, the wake-up eventfd, and the descriptors of AddFdWatch.
+  WatchIds := FFdWatches.Keys.ToArray;
+  SetLength(Fds, 2 + Length(WatchIds));
+  Fds[0].Fd := wl_display_get_fd(FDisplay);
   Fds[0].events := POLLIN;
   Fds[0].revents := 0;
-  Fds[1].fd := FWakeFd;
+  Fds[1].Fd := FWakeFd;
   Fds[1].events := POLLIN;
   Fds[1].revents := 0;
-  N := poll(@Fds[0], 2, Timeout);
+  for I := 0 to High(WatchIds) do
+  begin
+    Watch := FFdWatches[WatchIds[I]];
+    Fds[2 + I].Fd := Watch.FFd;
+    Fds[2 + I].events := Watch.FEvents;
+    Fds[2 + I].revents := 0;
+  end;
+  N := poll(@Fds[0], Length(Fds), Timeout);
   Readable := (N > 0) and (Fds[0].revents and (POLLIN or POLLERR or POLLHUP) <> 0);
   if Readable then
   begin
@@ -3225,14 +3963,25 @@ begin
     if Assigned(FWakeProc) then
       FWakeProc();
   end;
+  if N > 0 then
+    for I := 0 to High(WatchIds) do
+      // A watch removed by the procedure of another one is not called.
+      if (Fds[2 + I].revents <> 0) and FFdWatches.TryGetValue(WatchIds[I], Watch) then
+      begin
+        Result := True;
+        Proc := Watch.FProc;
+        Proc();
+      end;
   if wl_display_dispatch_pending(FDisplay) > 0 then
     Result := True;
   if RunTimers then
     Result := True;
   if PaintWindows then
     Result := True;
-  if FTextInput <> nil then FTextInput.Sync;
-  if PumpDataTransfers then Result := True;
+  if FTextInput <> nil then
+    FTextInput.Sync;
+  if PumpDataTransfers then
+    Result := True;
   wl_display_flush(FDisplay);
   CheckConnection;
 end;
@@ -3265,9 +4014,15 @@ end;
 procedure TWlDisplay.RemoveWindow(const AWindow: TWlWindow);
 begin
   EndTextInput(AWindow, False);
-  if FDragWindow = AWindow then ClearDragOffer(False);
-  if FDragPressWindow = AWindow then begin FDragPressWindow := nil; FDragPressSerial := 0; end;
-  if FDragSourceWindow = AWindow then CancelDrag;
+  if FDragWindow = AWindow then
+    ClearDragOffer(False);
+  if FDragPressWindow = AWindow then
+  begin
+    FDragPressWindow := nil;
+    FDragPressSerial := 0;
+  end;
+  if FDragSourceWindow = AWindow then
+    CancelDrag;
   FWindows.Remove(AWindow);
   if FPointerWindow = AWindow then
     FPointerWindow := nil;
@@ -3280,6 +4035,10 @@ begin
     FLastInputWindow := nil;
   if FLastClickWindow = AWindow then
     FLastClickWindow := nil;
+  if FPressWindow = AWindow then
+    FPressWindow := nil;
+  if FMoveWindow = AWindow then
+    FMoveWindow := nil;
 end;
 
 function TWlDisplay.PrimaryOutput: TWlOutput;
@@ -3316,6 +4075,19 @@ begin
     Result := FLastInputWindow.ClientToScreen(FPointerPos)
   else
     Result := FPointerPos;
+end;
+
+procedure TWlDisplay.StartMove;
+var
+  W: TWlWindow;
+begin
+  W := FMoveWindow;
+  FMoveWindow := nil;
+  if (W = nil) or (W.FToplevel = nil) or (FPressWindow <> W) or (FPressButtons = 0) or (FSeat = nil) then
+    Exit;
+  WlLog(TWlLogLevel.Debug, 'move of "%s" starts (dragged)', [W.FTitle]);
+  xdg_toplevel_move(W.FToplevel, FSeat, FPressSerial);
+  Flush;
 end;
 
 procedure TWlDisplay.FlushAxis;
@@ -3659,7 +4431,7 @@ begin
       case xkb_compose_state_get_status(FComposeState) of
         XKB_COMPOSE_COMPOSING:
           Exit; // a dead key: the character comes with the next key
-        XKB_COMPOSE_COMPOSED:
+          XKB_COMPOSE_COMPOSED:
           begin
             FillChar(Buf, SizeOf(Buf), 0);
             xkb_compose_state_get_utf8(FComposeState, @Buf[0], SizeOf(Buf));
@@ -3832,138 +4604,256 @@ begin
   inherited;
 end;
 
-function TWlWindow.DoDrag(const Data: TWlDragData; const Event: TWlDragEvent; const Point: TPointF;
-  const Suggested: TWlDragOperation): TWlDragOperation;
+function TWlWindow.DoDrag(const Data: TWlDragData; const Event: TWlDragEvent; const Point: TPointF; const Suggested: TWlDragOperation): TWlDragOperation;
 begin
   Result := TWlDragOperation.None;
 end;
 
 procedure TWlDisplay.QueueDataWrite(Fd: Integer; const Data: UTF8String);
-var Write: TWlDataWrite;
+var
+  Write: TWlDataWrite;
 begin
   if (Data = '') or (fcntl(Fd, F_SETFL, fcntl(Fd, F_GETFL, 0) or O_NONBLOCK) < 0) then
-  begin CloseFd(Fd); Exit; end;
+  begin
+    CloseFd(Fd);
+    Exit;
+  end;
   Write := TWlDataWrite.Create;
-  Write.Fd := Fd; Write.Data := Data; Write.Offset := 0; Write.Deadline := MonotonicMs + 10000;
+  Write.Fd := Fd;
+  Write.Data := Data;
+  Write.Offset := 0;
+  Write.Deadline := MonotonicMs + 10000;
   FDataWrites.Add(Write);
 end;
 
 function TWlDisplay.PumpDataTransfers: Boolean;
-var I, Budget: Integer; N: NativeInt; Write: TWlDataWrite;
-  Chunk: array[0..16383] of Byte; Failed, Complete: Boolean;
+var
+  I, Budget: Integer;
+  N: NativeInt;
+  Write: TWlDataWrite;
+  Chunk: array[0..16383] of Byte;
+  Failed, Complete: Boolean;
 begin
   Result := False;
   for I := FDataWrites.Count - 1 downto 0 do
   begin
-    Write := FDataWrites[I]; Failed := MonotonicMs > Write.Deadline; Budget := 256 * 1024;
+    Write := FDataWrites[I];
+    Failed := MonotonicMs > Write.Deadline;
+    Budget := 256 * 1024;
     while not Failed and (Write.Offset < Length(Write.Data)) and (Budget > 0) do
     begin
       N := __write(Write.Fd, PAnsiChar(Write.Data) + Write.Offset, Min(16384, Length(Write.Data) - Write.Offset));
       if N > 0 then
-      begin Inc(Write.Offset, N); Dec(Budget, N); Write.Deadline := MonotonicMs + 10000; Result := True; end
-      else if (N < 0) and (errno = EINTR) then Continue
-      else begin Failed := (N = 0) or (errno <> EAGAIN); Break; end;
+      begin
+        Inc(Write.Offset, N);
+        Dec(Budget, N);
+        Write.Deadline := MonotonicMs + 10000;
+        Result := True;
+      end
+      else if (N < 0) and (errno = EINTR) then
+        Continue
+      else
+      begin
+        Failed := (N = 0) or (errno <> EAGAIN);
+        Break;
+      end;
     end;
-    if Failed or (Write.Offset = Length(Write.Data)) then FDataWrites.Delete(I);
+    if Failed or (Write.Offset = Length(Write.Data)) then
+      FDataWrites.Delete(I);
   end;
-  if FDragReadFd < 0 then Exit;
-  Failed := MonotonicMs > FDragReadDeadline; Complete := False; Budget := 256 * 1024;
+  if FDragReadFd < 0 then
+    Exit;
+  Failed := MonotonicMs > FDragReadDeadline;
+  Complete := False;
+  Budget := 256 * 1024;
   while not Failed and (Budget > 0) do
   begin
     N := __read(FDragReadFd, @Chunk[0], SizeOf(Chunk));
     if N > 0 then
     begin
-      if Length(FDragReadBytes) + N > MaxDragBytes then begin Failed := True; Break; end;
-      I := Length(FDragReadBytes); SetLength(FDragReadBytes, I + N); Move(Chunk[0], FDragReadBytes[I], N);
-      Dec(Budget, N); FDragReadDeadline := MonotonicMs + 10000; Result := True;
+      if Length(FDragReadBytes) + N > MaxDragBytes then
+      begin
+        Failed := True;
+        Break;
+      end;
+      I := Length(FDragReadBytes);
+      SetLength(FDragReadBytes, I + N);
+      Move(Chunk[0], FDragReadBytes[I], N);
+      Dec(Budget, N);
+      FDragReadDeadline := MonotonicMs + 10000;
+      Result := True;
     end
-    else if N = 0 then begin Complete := True; Break; end
-    else if errno = EINTR then Continue
-    else begin Failed := errno <> EAGAIN; Break; end;
+    else if N = 0 then
+    begin
+      Complete := True;
+      Break;
+    end
+    else if errno = EINTR then
+      Continue
+    else
+    begin
+      Failed := errno <> EAGAIN;
+      Break;
+    end;
   end;
   if Failed then
-  begin WlLog(TWlLogLevel.Warning, 'drag data transfer failed or exceeded 64 MiB'); ClearDragOffer(True); Exit; end;
-  if not Complete then Exit;
+  begin
+    WlLog(TWlLogLevel.Warning, 'drag data transfer failed or exceeded 64 MiB');
+    ClearDragOffer(True);
+    Exit;
+  end;
+  if not Complete then
+    Exit;
   CloseFd(FDragReadFd);
   try
-    if (FDragMime = 'STRING') or (FDragMime = 'TEXT') then FDragData.Text := TEncoding.ANSI.GetString(FDragReadBytes)
-    else FDragData.Text := TEncoding.UTF8.GetString(FDragReadBytes);
+    if (FDragMime = 'STRING') or (FDragMime = 'TEXT') then
+      FDragData.Text := TEncoding.ANSI.GetString(FDragReadBytes)
+    else
+      FDragData.Text := TEncoding.UTF8.GetString(FDragReadBytes);
   except
     on E: EEncodingError do
-    begin WlLog(TWlLogLevel.Warning, 'invalid text encoding in drag data'); ClearDragOffer(True); Exit; end;
+    begin
+      WlLog(TWlLogLevel.Warning, 'invalid text encoding in drag data');
+      ClearDragOffer(True);
+      Exit;
+    end;
   end;
   FDragReadBytes := nil;
   if FDragMime = DragUriMime then
-  begin FDragData.Files := DragUriListToFiles(FDragData.Text); FDragData.Text := ''; end;
+  begin
+    FDragData.Files := DragUriListToFiles(FDragData.Text);
+    FDragData.Text := '';
+  end;
   FDragReady := (FDragMime <> DragUriMime) or (Length(FDragData.Files) > 0);
-  if not FDragReady then begin ClearDragOffer(True); Exit; end;
-  if FDragDropped then DropDrag else UpdateDrag;
+  if not FDragReady then
+  begin
+    ClearDragOffer(True);
+    Exit;
+  end;
+  if FDragDropped then
+    DropDrag
+  else
+    UpdateDrag;
   Result := True;
 end;
 
 procedure TWlDisplay.ClearDragOffer(const Notify: Boolean);
-var Offer: TWlDataOffer; Window: TWlWindow; Data: TWlDragData; Point: TPointF;
+var
+  Offer: TWlDataOffer;
+  Window: TWlWindow;
+  Data: TWlDragData;
+  Point: TPointF;
 begin
-  Offer := FDragOffer; Window := FDragWindow; Data := FDragData; Point := FDragPos;
-  FDragOffer := nil; FDragWindow := nil; FDragMime := ''; FDragData := Default(TWlDragData);
-  FDragReady := False; FDragDropped := False; FDragOperation := TWlDragOperation.None;
-  CloseFd(FDragReadFd); FDragReadBytes := nil;
+  Offer := FDragOffer;
+  Window := FDragWindow;
+  Data := FDragData;
+  Point := FDragPos;
+  FDragOffer := nil;
+  FDragWindow := nil;
+  FDragMime := '';
+  FDragData := Default(TWlDragData);
+  FDragReady := False;
+  FDragDropped := False;
+  FDragOperation := TWlDragOperation.None;
+  CloseFd(FDragReadFd);
+  FDragReadBytes := nil;
   if Offer <> nil then
-  begin wl_data_offer_destroy(Offer.FOffer); FOffers.Remove(Offer.FOffer); end;
+  begin
+    wl_data_offer_destroy(Offer.FOffer);
+    FOffers.Remove(Offer.FOffer);
+  end;
   if Notify and (Window <> nil) and FWindows.Contains(Window) then
     Window.DoDrag(Data, TWlDragEvent.Leave, Point, TWlDragOperation.None);
 end;
 
 procedure TWlDisplay.UpdateDrag;
-var Offer: TWlDataOffer; Op: TWlDragOperation; Action, Available: UInt32;
+var
+  Offer: TWlDataOffer;
+  Op: TWlDragOperation;
+  Action, Available: UInt32;
 begin
-  if not FDragReady or FDragDropped or (FDragOffer = nil) or (FDragWindow = nil) then Exit;
-  Offer := FDragOffer; Available := Offer.FSourceActions;
-  if wl_data_offer_get_version(Offer.FOffer) < 3 then Available := WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+  if not FDragReady or FDragDropped or (FDragOffer = nil) or (FDragWindow = nil) then
+    Exit;
+  Offer := FDragOffer;
+  Available := Offer.FSourceActions;
+  if wl_data_offer_get_version(Offer.FOffer) < 3 then
+    Available := WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
   Op := TWlDragOperation.Copy;
-  if Available and WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY = 0 then Op := TWlDragOperation.Move;
+  if Available and WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY = 0 then
+    Op := TWlDragOperation.Move;
   Op := FDragWindow.DoDrag(FDragData, TWlDragEvent.Over, FDragPos, Op);
-  if Offer <> FDragOffer then Exit; // User event may close the form or pump a nested event loop.
+  if Offer <> FDragOffer then
+    Exit; // User event may close the form or pump a nested event loop.
   Action := 0;
-  if Op = TWlDragOperation.Copy then Action := WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
-  if Op = TWlDragOperation.Move then Action := WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE;
-  if (Action and Available) = 0 then begin Action := 0; Op := TWlDragOperation.None; end;
+  if Op = TWlDragOperation.Copy then
+    Action := WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+  if Op = TWlDragOperation.Move then
+    Action := WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE;
+  if (Action and Available) = 0 then
+  begin
+    Action := 0;
+    Op := TWlDragOperation.None;
+  end;
   FDragOperation := Op;
-  if Action = 0 then wl_data_offer_accept(Offer.FOffer, FDragSerial, nil)
-  else wl_data_offer_accept(Offer.FOffer, FDragSerial, PAnsiChar(UTF8String(FDragMime)));
-  if wl_data_offer_get_version(Offer.FOffer) >= 3 then wl_data_offer_set_actions(Offer.FOffer, Action, Action);
+  if Action = 0 then
+    wl_data_offer_accept(Offer.FOffer, FDragSerial, nil)
+  else
+    wl_data_offer_accept(Offer.FOffer, FDragSerial, PAnsiChar(UTF8String(FDragMime)));
+  if wl_data_offer_get_version(Offer.FOffer) >= 3 then
+    wl_data_offer_set_actions(Offer.FOffer, Action, Action);
 end;
 
 procedure TWlDisplay.DropDrag;
-var Offer: TWlDataOffer; Op, Accepted: TWlDragOperation;
+var
+  Offer: TWlDataOffer;
+  Op, Accepted: TWlDragOperation;
 begin
   Offer := FDragOffer;
   if (Offer = nil) or (FDragWindow = nil) or not FDragReady or (FDragOperation = TWlDragOperation.None) then
-  begin ClearDragOffer(True); Exit; end;
+  begin
+    ClearDragOffer(True);
+    Exit;
+  end;
   Op := TWlDragOperation.Copy;
   if wl_data_offer_get_version(Offer.FOffer) >= 3 then
     case Offer.FAction of
-      WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY: Op := TWlDragOperation.Copy;
-      WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE: Op := TWlDragOperation.Move;
-    else Op := TWlDragOperation.None; end;
-  if Op = TWlDragOperation.None then begin ClearDragOffer(True); Exit; end;
+      WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY:
+        Op := TWlDragOperation.Copy;
+      WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE:
+        Op := TWlDragOperation.Move;
+    else
+      Op := TWlDragOperation.None;
+    end;
+  if Op = TWlDragOperation.None then
+  begin
+    ClearDragOffer(True);
+    Exit;
+  end;
   Accepted := FDragWindow.DoDrag(FDragData, TWlDragEvent.Over, FDragPos, Op);
-  if Offer <> FDragOffer then Exit;
-  if Accepted <> Op then begin ClearDragOffer(True); Exit; end;
+  if Offer <> FDragOffer then
+    Exit;
+  if Accepted <> Op then
+  begin
+    ClearDragOffer(True);
+    Exit;
+  end;
   Accepted := FDragWindow.DoDrag(FDragData, TWlDragEvent.Drop, FDragPos, Op);
-  if Offer <> FDragOffer then Exit;
-  if (Accepted = Op) and (wl_data_offer_get_version(Offer.FOffer) >= 3) then wl_data_offer_finish(Offer.FOffer);
+  if Offer <> FDragOffer then
+    Exit;
+  if (Accepted = Op) and (wl_data_offer_get_version(Offer.FOffer) >= 3) then
+    wl_data_offer_finish(Offer.FOffer);
   ClearDragOffer(True);
 end;
 
-function TWlDisplay.BeginDrag(Window: TWlWindow; const Data: TWlDragData;
-  const OnEnd: TProc<TWlDragOperation>; const Image: TWlDragImage): Boolean;
+function TWlDisplay.BeginDrag(Window: TWlWindow; const Data: TWlDragData; const OnEnd: TProc<TWlDragOperation>; const Image: TWlDragImage): Boolean;
 begin
   Result := False;
   if (FDataDevice = nil) or (FDragSource <> nil) or (Window = nil) or (FDragPressWindow <> Window) or
-    (FDragPressSerial = 0) or (FButtons = 0) then Exit;
+    (FDragPressSerial = 0) or (FButtons = 0) then
+    Exit;
   // Only v3 sources have dnd_finished, needed to release FMX Source reliably after external drops.
-  if wl_data_device_manager_get_version(FDataDeviceManager) < 3 then Exit;
+  if wl_data_device_manager_get_version(FDataDeviceManager) < 3 then
+    Exit;
   if (Image.Width > 0) and (Image.Height > 0) and (Image.Width <= 512) and (Image.Height <= 512) and
     (Length(Image.Pixels) = Image.Width * Image.Height) then
   begin
@@ -3971,55 +4861,84 @@ begin
     Move(Image.Pixels[0], FDragIconBuffer.Data^, Length(Image.Pixels) * SizeOf(Cardinal));
     FDragIconSurface := wl_compositor_create_surface(FCompositor);
   end;
-  FDragSourceUris := DragFilesToUriList(Data.Files); FDragSourceText := UTF8String(Data.Text);
+  FDragSourceUris := DragFilesToUriList(Data.Files);
+  FDragSourceText := UTF8String(Data.Text);
   FDragInternalMime := UTF8String('application/x-fmxwayland-' + IntToStr(getpid) + '-' + IntToHex(NativeUInt(Self), 16));
   FDragSource := wl_data_device_manager_create_data_source(FDataDeviceManager);
   wl_data_source_add_listener(FDragSource, @CDataSourceListener, Self);
   wl_data_source_offer(FDragSource, PAnsiChar(FDragInternalMime));
-  if FDragSourceUris <> '' then wl_data_source_offer(FDragSource, PAnsiChar(UTF8String(DragUriMime)));
+  if FDragSourceUris <> '' then
+    wl_data_source_offer(FDragSource, PAnsiChar(UTF8String(DragUriMime)));
   if FDragSourceText <> '' then
-  begin wl_data_source_offer(FDragSource, PAnsiChar(UTF8String(DragTextMime))); wl_data_source_offer(FDragSource, 'text/plain'); end;
+  begin
+    wl_data_source_offer(FDragSource, PAnsiChar(UTF8String(DragTextMime)));
+    wl_data_source_offer(FDragSource, 'text/plain');
+  end;
   if wl_data_source_get_version(FDragSource) >= 3 then
     wl_data_source_set_actions(FDragSource, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY or WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE);
-  FDragSourceWindow := Window; FDragSourceData := Data; FDragSourceAction := 0; FDragEnd := OnEnd;
+  FDragSourceWindow := Window;
+  FDragSourceData := Data;
+  FDragSourceAction := 0;
+  FDragEnd := OnEnd;
   wl_data_device_start_drag(FDataDevice, FDragSource, Window.Surface, FDragIconSurface, FDragPressSerial);
   if FDragIconSurface <> nil then
   begin
     wl_surface_attach(FDragIconSurface, FDragIconBuffer.Buffer, 0, 0);
     wl_surface_damage(FDragIconSurface, 0, 0, Image.Width, Image.Height);
-    wl_surface_commit(FDragIconSurface); FDragIconBuffer.Busy := True;
+    wl_surface_commit(FDragIconSurface);
+    FDragIconBuffer.Busy := True;
   end;
   FDragPressSerial := 0;
-  Flush; Result := True;
+  Flush;
+  Result := True;
 end;
 
 procedure TWlDisplay.EndDrag(const Operation: TWlDragOperation);
-var OnEnd: TProc<TWlDragOperation>; Source: Pwl_data_source; Target: TWlWindow; Point: TPointF;
+var
+  OnEnd: TProc<TWlDragOperation>;
+  Source: Pwl_data_source;
+  Target: TWlWindow;
+  Point: TPointF;
 begin
-  Source := FDragSource; OnEnd := FDragEnd;
-  Target := nil; Point := FDragPos;
+  Source := FDragSource;
+  OnEnd := FDragEnd;
+  Target := nil;
+  Point := FDragPos;
   if FDragData.Internal then
-  begin Target := FDragWindow; ClearDragOffer(False); end;
+  begin
+    Target := FDragWindow;
+    ClearDragOffer(False);
+  end;
   ClearDragIcon;
-  FDragSource := nil; FDragSourceWindow := nil; FDragEnd := nil;
-  FDragSourceData := Default(TWlDragData); FDragSourceText := ''; FDragSourceUris := '';
-  FButtons := 0; FDragPressWindow := nil; FDragPressSerial := 0;
-  if Source <> nil then wl_data_source_destroy(Source);
-  if Assigned(OnEnd) then OnEnd(Operation);
+  FDragSource := nil;
+  FDragSourceWindow := nil;
+  FDragEnd := nil;
+  FDragSourceData := Default(TWlDragData);
+  FDragSourceText := '';
+  FDragSourceUris := '';
+  FButtons := 0;
+  FDragPressWindow := nil;
+  FDragPressSerial := 0;
+  if Source <> nil then
+    wl_data_source_destroy(Source);
+  if Assigned(OnEnd) then
+    OnEnd(Operation);
   if (Target <> nil) and FWindows.Contains(Target) and (FDragWindow = nil) then
     Target.DoDrag(Default(TWlDragData), TWlDragEvent.Leave, Point, TWlDragOperation.None);
 end;
 
 procedure TWlDisplay.ClearDragIcon;
 begin
-  if FDragIconSurface <> nil then wl_surface_destroy(FDragIconSurface);
+  if FDragIconSurface <> nil then
+    wl_surface_destroy(FDragIconSurface);
   FDragIconSurface := nil;
   FreeAndNil(FDragIconBuffer);
 end;
 
 procedure TWlDisplay.CancelDrag;
 begin
-  if FDragSource <> nil then EndDrag(TWlDragOperation.None);
+  if FDragSource <> nil then
+    EndDrag(TWlDragOperation.None);
 end;
 
 function TWlDisplay.ClipboardGetText: string;
@@ -4077,3 +4996,4 @@ end;
 {$ENDREGION}
 
 end.
+
